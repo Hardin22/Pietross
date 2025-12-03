@@ -3,6 +3,7 @@ import Supabase
 
 struct RootView: View {
     @State private var isUserLoggedIn: Bool = false
+    @State private var needsOnboarding: Bool = false
     @State private var isLoading: Bool = true
     
     var body: some View {
@@ -10,14 +11,21 @@ struct RootView: View {
             if isLoading {
                 ProgressView()
             } else if isUserLoggedIn {
-                MemoryEditorWrapper()
-                    .ignoresSafeArea(.all)
-                    .transition(.opacity)
+                if needsOnboarding {
+                    OnboardingView(onFinished: {
+                        withAnimation {
+                            needsOnboarding = false
+                        }
+                    })
+                    .transition(.move(edge: .trailing))
+                } else {
+                    SocialView()
+                        .transition(.opacity)
+                }
             } else {
                 LoginScreenWrapper(onLoginSuccess: {
-                    withAnimation {
-                        isUserLoggedIn = true
-                    }
+                    // Login success, now check if we need onboarding
+                    checkSession()
                 })
                 .transition(.opacity)
             }
@@ -28,11 +36,53 @@ struct RootView: View {
     }
     
     private func checkSession() {
+        // Initial check
+        if let _ = SupabaseManager.shared.client.auth.currentUser {
+            self.isUserLoggedIn = true
+            checkProfile()
+        } else {
+            self.isLoading = false
+        }
+        
+        // Listen for auth changes
         Task {
-            let user = SupabaseManager.shared.client.auth.currentUser
-            await MainActor.run {
-                self.isUserLoggedIn = (user != nil)
-                self.isLoading = false
+            for await _ in SupabaseManager.shared.client.auth.authStateChanges {
+                let user = SupabaseManager.shared.client.auth.currentUser
+                await MainActor.run {
+                    withAnimation {
+                        self.isUserLoggedIn = (user != nil)
+                        if user != nil {
+                            checkProfile()
+                        } else {
+                            self.needsOnboarding = false
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    private func checkProfile() {
+        Task {
+            do {
+                if let profile = try await SocialService.shared.getCurrentProfile() {
+                    await MainActor.run {
+                        // If username is empty or nil, we need onboarding
+                        self.needsOnboarding = (profile.username == nil || profile.username?.isEmpty == true)
+                        self.isLoading = false
+                    }
+                } else {
+                    // Profile doesn't exist yet (shouldn't happen with trigger, but safe fallback)
+                    await MainActor.run {
+                        self.needsOnboarding = true
+                        self.isLoading = false
+                    }
+                }
+            } catch {
+                print("Error checking profile: \(error)")
+                await MainActor.run {
+                    self.isLoading = false
+                }
             }
         }
     }
@@ -53,9 +103,13 @@ struct LoginScreenWrapper: UIViewControllerRepresentable {
 }
 
 struct MemoryEditorWrapper: UIViewControllerRepresentable {
+    let book: Book
+    
     func makeUIViewController(context: Context) -> UINavigationController {
-        let vm = EditorViewModel()
+        // In future, pass book.id to EditorViewModel to load specific pages
+        let vm = EditorViewModel() 
         let vc = MemoryEditorViewController(viewModel: vm)
+        vc.title = book.title
         let nav = UINavigationController(rootViewController: vc)
         let appearance = UINavigationBarAppearance()
         appearance.configureWithTransparentBackground()

@@ -30,17 +30,17 @@ class LoginViewModel: NSObject, ObservableObject {
         }
         
         Task {
-            await performSupabaseLogin(idToken: identityTokenString, nonce: nonce)
+            await performSupabaseLogin(idToken: identityTokenString, nonce: nonce, fullName: appleIDCredential.fullName)
         }
     }
     
     @MainActor
-    private func performSupabaseLogin(idToken: String, nonce: String) async {
+    private func performSupabaseLogin(idToken: String, nonce: String, fullName: PersonNameComponents?) async {
         self.isLoading = true
         self.errorMessage = nil
         
         do {
-            try await AuthService.shared.signInWithApple(idToken: idToken, nonce: nonce)
+            try await AuthService.shared.signInWithApple(idToken: idToken, nonce: nonce, fullName: fullName)
             self.isLoading = false
             self.onLoginSuccess?()
         } catch {
