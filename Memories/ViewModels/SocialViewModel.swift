@@ -48,12 +48,12 @@ class SocialViewModel: ObservableObject {
     
     @MainActor
     func subscribeToRealtimeUpdates() async {
-        let channel = SupabaseManager.shared.client.channel("public:friendships")
+        let channel = SupabaseManager.shared.client.channel(AppConstants.Realtime.friendshipsChannel)
         
         let changes = channel.postgresChange(
             AnyAction.self,
             schema: "public",
-            table: "friendships"
+            table: AppConstants.Table.friendships
         )
         
         await channel.subscribe()

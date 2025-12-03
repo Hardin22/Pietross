@@ -15,7 +15,7 @@ class SocialService {
         guard let currentUserId = client.auth.currentUser?.id else { return [] }
         
         let response: [Profile] = try await client
-            .from("profiles")
+            .from(AppConstants.Table.profiles)
             .select()
             .ilike("username", pattern: "%\(query)%")
             .neq("id", value: currentUserId) // Exclude current user
@@ -49,7 +49,7 @@ class SocialService {
         )
         
         try await client
-            .from("friendships")
+            .from(AppConstants.Table.friendships)
             .insert(friendship)
             .execute()
     }
@@ -58,7 +58,7 @@ class SocialService {
         guard let currentUser = client.auth.currentUser else { return [] }
         
         let response: [Friendship] = try await client
-            .from("friendships")
+            .from(AppConstants.Table.friendships)
             .select()
             .or("user_a.eq.\(currentUser.id),user_b.eq.\(currentUser.id)")
             .eq("status", value: "pending")
@@ -70,13 +70,11 @@ class SocialService {
     
     func declineFriendRequest(friendshipId: UUID) async throws {
         try await client
-            .from("friendships")
+            .from(AppConstants.Table.friendships)
             .delete() // Or update to 'rejected' if we want history
             .eq("id", value: friendshipId)
             .execute()
     }
-    
-    // MARK: - Realtime
     
     // MARK: - Realtime
     
@@ -88,7 +86,7 @@ class SocialService {
     func acceptFriendRequest(friendshipId: UUID) async throws -> Book {
         // 1. Update friendship status to accepted
         try await client
-            .from("friendships")
+            .from(AppConstants.Table.friendships)
             .update(["status": "accepted"])
             .eq("id", value: friendshipId)
             .execute()
@@ -103,7 +101,7 @@ class SocialService {
         )
         
         try await client
-            .from("books")
+            .from(AppConstants.Table.books)
             .insert(book)
             .execute()
             
@@ -117,7 +115,7 @@ class SocialService {
         // This requires a join or a two-step query since 'books' only has 'friendship_id'.
         // Step 1: Get all friendship IDs for the user.
         let friendships: [Friendship] = try await client
-            .from("friendships")
+            .from(AppConstants.Table.friendships)
             .select()
             .or("user_a.eq.\(currentUser.id),user_b.eq.\(currentUser.id)")
             .eq("status", value: "accepted")
@@ -130,7 +128,7 @@ class SocialService {
         
         // Step 2: Get books for these friendships
         let books: [Book] = try await client
-            .from("books")
+            .from(AppConstants.Table.books)
             .select()
             .in("friendship_id", value: friendshipIds)
             .execute()
@@ -155,7 +153,7 @@ class SocialService {
         }
         
         try await client
-            .from("profiles")
+            .from(AppConstants.Table.profiles)
             .update(updates)
             .eq("id", value: id)
             .execute()
@@ -163,7 +161,7 @@ class SocialService {
     
     func isUsernameAvailable(_ username: String) async throws -> Bool {
         let count = try await client
-            .from("profiles")
+            .from(AppConstants.Table.profiles)
             .select("id", head: true, count: .exact)
             .eq("username", value: username)
             .execute()
@@ -176,7 +174,7 @@ class SocialService {
         guard let currentUser = client.auth.currentUser else { return nil }
         
         let profile: Profile = try await client
-            .from("profiles")
+            .from(AppConstants.Table.profiles)
             .select()
             .eq("id", value: currentUser.id)
             .single()
@@ -190,14 +188,14 @@ class SocialService {
         let fileOptions = FileOptions(cacheControl: "3600", contentType: "image/jpeg", upsert: true)
         
         try await client.storage
-            .from("memories-assets")
-            .upload(path: "avatars/\(fileName)", file: data, options: fileOptions)
+            .from(AppConstants.Storage.bucket)
+            .upload(path: "\(AppConstants.Storage.avatarsPath)/\(fileName)", file: data, options: fileOptions)
             
         // The bucket appears to be private, so we must use a signed URL.
         // We generate a URL with a very long expiration (10 years) to act as a permanent link.
         let signedUrl = try await client.storage
-            .from("memories-assets")
-            .createSignedURL(path: "avatars/\(fileName)", expiresIn: 315360000) // 10 years
+            .from(AppConstants.Storage.bucket)
+            .createSignedURL(path: "\(AppConstants.Storage.avatarsPath)/\(fileName)", expiresIn: 315360000) // 10 years
             
         return signedUrl.absoluteString
     }
