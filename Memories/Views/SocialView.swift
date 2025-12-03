@@ -11,8 +11,6 @@ struct SocialView: View {
                 Color(UIColor.systemGroupedBackground)
                     .ignoresSafeArea()
                 
-                // Removed blocking loader
-
                 
                 ScrollView {
                     VStack(spacing: 24) {
@@ -161,6 +159,4 @@ struct SocialView: View {
 }
 
 // MARK: - Subviews
-
 // Components have been moved to separate files in Views/Components/
-

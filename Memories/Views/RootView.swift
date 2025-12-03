@@ -107,7 +107,8 @@ struct MemoryEditorWrapper: UIViewControllerRepresentable {
     
     func makeUIViewController(context: Context) -> UINavigationController {
         // In future, pass book.id to EditorViewModel to load specific pages
-        let vm = EditorViewModel() 
+        let defaultPage = PageData(id: UUID(), drawingData: Data(), items: [], bodyText: "")
+        let vm = EditorViewModel(pageData: defaultPage) 
         let vc = MemoryEditorViewController(viewModel: vm)
         vc.title = book.title
         let nav = UINavigationController(rootViewController: vc)

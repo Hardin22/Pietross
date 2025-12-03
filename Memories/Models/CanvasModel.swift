@@ -7,6 +7,9 @@ struct PageData: Codable {
     let id: UUID
     var drawingData: Data
     var items: [CanvasItem]
+    var bodyText: String = ""
+    var attributedBodyText: Data? // RTF Data for rich text
+    var backgroundColorData: Data? // Encoded UIColor
     
     // Dimensioni virtuali fisse per garantire consistenza tra dispositivi
     static let virtualSize = CGSize(width: 1000, height: 1400)
