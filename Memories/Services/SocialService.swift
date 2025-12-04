@@ -130,11 +130,41 @@ class SocialService {
         let books: [Book] = try await client
             .from(AppConstants.Table.books)
             .select()
-            .in("friendship_id", value: friendshipIds)
+            .in("friendship_id", values: friendshipIds)
             .execute()
             .value
             
         return books
+    }
+    
+    func getFriends() async throws -> [Profile] {
+        guard let currentUser = client.auth.currentUser else { return [] }
+        
+        // 1. Get accepted friendships
+        let friendships: [Friendship] = try await client
+            .from(AppConstants.Table.friendships)
+            .select()
+            .or("user_a.eq.\(currentUser.id),user_b.eq.\(currentUser.id)")
+            .eq("status", value: "accepted")
+            .execute()
+            .value
+        
+        if friendships.isEmpty { return [] }
+        
+        // 2. Extract friend IDs
+        let friendIds = friendships.map { friendship -> UUID in
+            return friendship.userA == currentUser.id ? friendship.userB : friendship.userA
+        }
+        
+        // 3. Fetch profiles
+        let profiles: [Profile] = try await client
+            .from(AppConstants.Table.profiles)
+            .select()
+            .in("id", values: friendIds)
+            .execute()
+            .value
+            
+        return profiles
     }
     // MARK: - Profile Management
     
@@ -189,7 +219,7 @@ class SocialService {
         
         try await client.storage
             .from(AppConstants.Storage.bucket)
-            .upload(path: "\(AppConstants.Storage.avatarsPath)/\(fileName)", file: data, options: fileOptions)
+            .upload("\(AppConstants.Storage.avatarsPath)/\(fileName)", data: data, options: fileOptions)
             
         // The bucket appears to be private, so we must use a signed URL.
         // We generate a URL with a very long expiration (10 years) to act as a permanent link.
@@ -198,5 +228,55 @@ class SocialService {
             .createSignedURL(path: "\(AppConstants.Storage.avatarsPath)/\(fileName)", expiresIn: 315360000) // 10 years
             
         return signedUrl.absoluteString
+    }
+    
+    // MARK: - Letters
+    
+    func sendLetter(recipientId: UUID, imageData: Data) async throws {
+        guard let currentUser = client.auth.currentUser else {
+            throw NSError(domain: "Auth", code: 401, userInfo: [NSLocalizedDescriptionKey: "User not logged in"])
+        }
+        
+        let letterId = UUID()
+        let fileName = "\(letterId.uuidString).jpg"
+        let fileOptions = FileOptions(cacheControl: "3600", contentType: "image/jpeg", upsert: false)
+        
+        // 1. Upload Image
+        try await client.storage
+            .from(AppConstants.Storage.bucket)
+            .upload("\(AppConstants.Storage.lettersPath)/\(fileName)", data: imageData, options: fileOptions)
+            
+        // 2. Get Public URL (or Signed URL if private)
+        let signedUrl = try await client.storage
+            .from(AppConstants.Storage.bucket)
+            .createSignedURL(path: "\(AppConstants.Storage.lettersPath)/\(fileName)", expiresIn: 315360000) // 10 years
+            
+        // 3. Create Letter Record
+        let letter = Letter(
+            id: letterId,
+            senderId: currentUser.id,
+            recipientId: recipientId,
+            imageUrl: signedUrl.absoluteString,
+            createdAt: Date()
+        )
+        
+        try await client
+            .from(AppConstants.Table.letters)
+            .insert(letter)
+            .execute()
+    }
+    
+    func getReceivedLetters() async throws -> [Letter] {
+        guard let currentUser = client.auth.currentUser else { return [] }
+        
+        let letters: [Letter] = try await client
+            .from(AppConstants.Table.letters)
+            .select()
+            .eq("recipient_id", value: currentUser.id)
+            .order("created_at", ascending: false)
+            .execute()
+            .value
+            
+        return letters
     }
 }

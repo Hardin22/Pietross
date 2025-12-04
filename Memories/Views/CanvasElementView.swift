@@ -110,14 +110,17 @@ class CanvasElementView: UIView, UIGestureRecognizerDelegate {
         if gesture.state == .ended { notifyUpdate() }
     }
 
+    var isSelected: Bool = false
+
     func deselect() {
+        isSelected = false
         self.layer.borderWidth = 0
         self.resizeHandle?.isHidden = true
         self.deleteButton?.isHidden = true
     }
 
     private func setupDeleteButton() {
-        let btnSize: CGFloat = 32
+        let btnSize: CGFloat = 50 // Larger button
         let btn = UIButton(frame: CGRect(x: -btnSize/2, y: -btnSize/2, width: btnSize, height: btnSize))
         btn.backgroundColor = .systemRed
         btn.setImage(UIImage(systemName: "trash.fill"), for: .normal)
@@ -134,13 +137,15 @@ class CanvasElementView: UIView, UIGestureRecognizerDelegate {
     }
 
     private func setupResizeHandle() {
-        let handleSize: CGFloat = 60 // Even larger touch area
-        let handle = UIView(frame: CGRect(x: bounds.width - 40, y: bounds.height - 40, width: handleSize, height: handleSize))
+        let handleSize: CGFloat = 80 // Much larger touch area
+        // Center the handle on the bottom-right corner
+        let handle = UIView(frame: CGRect(x: bounds.width - handleSize/2, y: bounds.height - handleSize/2, width: handleSize, height: handleSize))
         
-        // Visual indicator (smaller than touch area)
-        let visualDot = UIView(frame: CGRect(x: (handleSize - 16)/2, y: (handleSize - 16)/2, width: 16, height: 16))
+        // Visual indicator (larger)
+        let dotSize: CGFloat = 24
+        let visualDot = UIView(frame: CGRect(x: (handleSize - dotSize)/2, y: (handleSize - dotSize)/2, width: dotSize, height: dotSize))
         visualDot.backgroundColor = .systemBlue
-        visualDot.layer.cornerRadius = 8
+        visualDot.layer.cornerRadius = dotSize / 2
         visualDot.isUserInteractionEnabled = false
         handle.addSubview(visualDot)
         
@@ -212,6 +217,7 @@ class CanvasElementView: UIView, UIGestureRecognizerDelegate {
         }
         
         // Select self
+        isSelected = true
         self.layer.borderWidth = 2
         self.resizeHandle?.isHidden = false
         self.deleteButton?.isHidden = false

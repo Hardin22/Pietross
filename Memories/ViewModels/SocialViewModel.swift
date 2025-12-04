@@ -10,6 +10,8 @@ class SocialViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var books: [Book] = []
+    @Published var friends: [Profile] = [] // New friends list
+    @Published var receivedLetters: [Letter] = [] // Received letters
     @Published var currentUser: Profile?
     @Published var searchText: String = ""
     
@@ -36,11 +38,13 @@ class SocialViewModel: ObservableObject {
     @MainActor
     func loadData() async {
         // Parallel execution
-        async let requests = fetchPendingRequests()
-        async let books = fetchBooks()
-        async let profile = fetchCurrentUser()
-        
-        _ = await (requests, books, profile)
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await self.fetchPendingRequests() }
+            group.addTask { await self.fetchBooks() }
+            group.addTask { await self.fetchFriends() }
+            group.addTask { await self.fetchCurrentUser() }
+            group.addTask { await self.fetchReceivedLetters() }
+        }
         
         // Start Realtime Subscription
         await subscribeToRealtimeUpdates()
@@ -63,6 +67,7 @@ class SocialViewModel: ObservableObject {
                 print("Realtime: Friendship changed")
                 await self.fetchPendingRequests()
                 await self.fetchBooks()
+                await self.fetchFriends()
             }
         }
     }
@@ -91,6 +96,24 @@ class SocialViewModel: ObservableObject {
             self.books = try await socialService.getBooks()
         } catch {
             print("Failed to fetch books: \(error)")
+        }
+    }
+    
+    @MainActor
+    func fetchFriends() async {
+        do {
+            self.friends = try await socialService.getFriends()
+        } catch {
+            print("Failed to fetch friends: \(error)")
+        }
+    }
+    
+    @MainActor
+    func fetchReceivedLetters() async {
+        do {
+            self.receivedLetters = try await socialService.getReceivedLetters()
+        } catch {
+            print("Failed to fetch letters: \(error)")
         }
     }
     
