@@ -11,42 +11,30 @@ struct LetterView: View {
         ZStack {
             Color.black.ignoresSafeArea()
             
-            AsyncImage(url: URL(string: letter.imageUrl)) { phase in
-                switch phase {
-                case .empty:
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                case .success(let image):
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .scaleEffect(scale)
-                        .gesture(
-                            MagnificationGesture()
-                                .onChanged { value in
-                                    let delta = value / lastScale
-                                    lastScale = value
-                                    scale *= delta
-                                }
-                                .onEnded { _ in
-                                    lastScale = 1.0
-                                    if scale < 1.0 {
-                                        withAnimation {
-                                            scale = 1.0
-                                        }
+            CachedImage(url: URL(string: letter.imageUrl)!) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .scaleEffect(scale)
+                    .gesture(
+                        MagnificationGesture()
+                            .onChanged { value in
+                                let delta = value / lastScale
+                                lastScale = value
+                                scale *= delta
+                            }
+                            .onEnded { _ in
+                                lastScale = 1.0
+                                if scale < 1.0 {
+                                    withAnimation {
+                                        scale = 1.0
                                     }
                                 }
-                        )
-                case .failure:
-                    VStack {
-                        Image(systemName: "exclamationmark.triangle")
-                            .foregroundColor(.white)
-                        Text("Failed to load letter")
-                            .foregroundColor(.white)
-                    }
-                @unknown default:
-                    EmptyView()
-                }
+                            }
+                    )
+            } placeholder: {
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
             }
             
             // Close Button

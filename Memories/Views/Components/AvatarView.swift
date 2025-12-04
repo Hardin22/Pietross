@@ -7,17 +7,12 @@ struct AvatarView: View {
     
     var body: some View {
         if let avatarUrl = avatarUrl, let url = URL(string: avatarUrl) {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .empty:
-                    ProgressView()
-                case .success(let image):
-                    image.resizable().scaledToFill()
-                case .failure:
-                    Color.red.opacity(0.5)
-                @unknown default:
-                    EmptyView()
-                }
+            CachedImage(url: url) { image in
+                image
+                    .resizable()
+                    .scaledToFill()
+            } placeholder: {
+                ProgressView()
             }
             .frame(width: size, height: size)
             .clipShape(Circle())
