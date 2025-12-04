@@ -181,16 +181,10 @@ class MemoryEditorViewController: UIViewController, PKCanvasViewDelegate, Canvas
         var rightItems: [UIBarButtonItem] = []
         var leftItems: [UIBarButtonItem] = []
         
-        if viewModel.recipient != nil {
-            // Send Mode
-            let sendBtn = UIBarButtonItem(title: "Invia", style: .done, target: self, action: #selector(sendAction))
-            sendBtn.tintColor = .systemBlue
-            rightItems.append(sendBtn)
-        } else {
-            // Edit/Save Mode
-            let saveBtn = UIBarButtonItem(title: "Salva", style: .done, target: self, action: #selector(saveAction))
-            rightItems.append(saveBtn)
-        }
+        // Always Send Mode
+        let sendBtn = UIBarButtonItem(title: "Invia", style: .done, target: self, action: #selector(sendAction))
+        sendBtn.tintColor = .systemBlue
+        rightItems.append(sendBtn)
         
         if isiPad {
             let modeBtn = UIBarButtonItem(image: UIImage(systemName: "hand.draw"), style: .plain, target: self, action: #selector(toggleMode))
@@ -297,16 +291,7 @@ class MemoryEditorViewController: UIViewController, PKCanvasViewDelegate, Canvas
         bodyTextView.isUserInteractionEnabled = !isDrawingMode
     }
     
-    @objc private func saveAction() {
-        if isiPad {
-            viewModel.saveDrawing(canvasView.drawing)
-        } else {
-            viewModel.saveDrawing(PKDrawing()) // Empty drawing for iPhone
-        }
-        let alert = UIAlertController(title: "Salvato", message: nil, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
-        present(alert, animated: true)
-    }
+    // saveAction removed as per user request
     
     @objc private func openPhotoPicker() {
         var config = PHPickerConfiguration()

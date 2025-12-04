@@ -99,11 +99,7 @@ class EditorViewModel {
         onDataLoaded?()
     }
     
-    func saveDrawing(_ drawing: PKDrawing) {
-        pageData.drawingData = drawing.dataRepresentation()
-        // Qui ci andrà il salvataggio su Supabase in futuro
-        print("Salvataggio locale completato. Items: \(pageData.items.count), BodyText length: \(pageData.bodyText.count)")
-    }
+    // saveDrawing removed as per user request
     
     func restoreDrawing() -> PKDrawing? {
         try? PKDrawing(data: pageData.drawingData)
