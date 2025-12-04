@@ -19,7 +19,7 @@ struct RootView: View {
                     })
                     .transition(.move(edge: .trailing))
                 } else {
-                    SocialView()
+	                    MainTabView()
                         .transition(.opacity)
                 }
             } else {
