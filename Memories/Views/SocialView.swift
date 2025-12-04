@@ -2,8 +2,10 @@ import SwiftUI
 
 struct SocialView: View {
     @StateObject private var viewModel = SocialViewModel()
-    @State private var selectedBook: Book?
+    @State private var selectedFriend: Profile?
+    @State private var showCanvas = false
     @State private var showRequests = false
+    @State private var letterRecipient: Profile? // Specific for sending letters
     
     var body: some View {
         NavigationView {
@@ -88,51 +90,44 @@ struct SocialView: View {
                             }
                         }
                         
-                        // Books Section
+                        // Friends Section
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("My Books")
+                            Text("My Friends")
                                 .font(.headline)
                                 .padding(.horizontal)
                             
-                            if viewModel.books.isEmpty {
-                                EmptyStateView()
+                            if viewModel.friends.isEmpty {
+                                Text("No friends yet. Search to add some!")
+                                    .foregroundColor(.secondary)
+                                    .padding(.horizontal)
                             } else {
-                                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-                                    ForEach(viewModel.books) { book in
-                                        BookCard(book: book) {
-                                            selectedBook = book
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 20) {
+                                        ForEach(viewModel.friends) { friend in
+                                            Button(action: {
+                                                selectedFriend = friend
+                                            }) {
+                                                VStack {
+                                                    AvatarView(
+                                                        avatarUrl: friend.avatarUrl,
+                                                        username: friend.username,
+                                                        size: 64
+                                                    )
+                                                    Text(friend.username ?? "Unknown")
+                                                        .font(.caption)
+                                                        .foregroundColor(.primary)
+                                                        .lineLimit(1)
+                                                }
+                                            }
                                         }
                                     }
+                                    .padding(.horizontal)
                                 }
-                                .padding(.horizontal)
                             }
                         }
                         
                         // Debug/Test Section
                         VStack(spacing: 12) {
-                            Button(action: {
-                                // Create a dummy book for testing
-                                let dummyBook = Book(
-                                    id: UUID(),
-                                    friendshipId: UUID(),
-                                    coverUrl: nil,
-                                    title: "Test Canvas",
-                                    createdAt: Date()
-                                )
-                                selectedBook = dummyBook
-                            }) {
-                                HStack {
-                                    
-                                    Text("Test Canvas")
-                                }
-                                .foregroundColor(.white)
-                                .padding()
-                                .frame(maxWidth: .infinity)
-                                .background(Color.purple)
-                                .cornerRadius(12)
-                            }
-                            .padding(.horizontal)
-                            
                             SignOutButton {
                                 viewModel.signOut()
                             }
@@ -147,14 +142,105 @@ struct SocialView: View {
             .task {
                 await viewModel.loadData()
             }
-            .fullScreenCover(item: $selectedBook) { book in
-                MemoryEditorWrapper(book: book)
-                    .ignoresSafeArea(.all)
+            .sheet(item: $selectedFriend) { friend in
+                FriendDetailSheet(friend: friend) { action in
+                    selectedFriend = nil // Close sheet
+                    
+                    switch action {
+                    case .openBook:
+                        // Open book logic (placeholder for now)
+                        showCanvas = true
+                        letterRecipient = nil
+                    case .sendLetter:
+                        letterRecipient = friend
+                        showCanvas = true
+                    }
+                }
+                .presentationDetents([.fraction(0.4)])
+            }
+            .fullScreenCover(isPresented: $showCanvas) {
+                if let recipient = letterRecipient {
+                    MemoryEditorWrapper(recipient: recipient)
+                        .ignoresSafeArea(.all)
+                } else {
+                    let dummyBook = Book(id: UUID(), friendshipId: UUID(), coverUrl: nil, title: "Memories", createdAt: Date())
+                    MemoryEditorWrapper(book: dummyBook)
+                        .ignoresSafeArea(.all)
+                }
             }
             .sheet(isPresented: $showRequests) {
-                FriendRequestsView(viewModel: viewModel)
+                InboxView(viewModel: viewModel)
             }
         }
+    }
+}
+
+enum FriendAction {
+    case openBook
+    case sendLetter
+}
+
+struct FriendDetailSheet: View {
+    let friend: Profile
+    let onAction: (FriendAction) -> Void
+    
+    var body: some View {
+        VStack(spacing: 24) {
+            Capsule()
+                .fill(Color.secondary.opacity(0.2))
+                .frame(width: 40, height: 4)
+                .padding(.top, 8)
+            
+            VStack(spacing: 8) {
+                AvatarView(avatarUrl: friend.avatarUrl, username: friend.username, size: 80)
+                
+                Text(friend.username ?? "Unknown")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                
+                if let fullName = friend.fullName {
+                    Text(fullName)
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            HStack(spacing: 16) {
+                Button(action: { onAction(.openBook) }) {
+                    VStack {
+                        Image(systemName: "book.fill")
+                            .font(.title2)
+                        Text("Memories Book")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.blue.opacity(0.1))
+                    .foregroundColor(.blue)
+                    .cornerRadius(12)
+                }
+                
+                Button(action: { onAction(.sendLetter) }) {
+                    VStack {
+                        Image(systemName: "envelope.fill")
+                            .font(.title2)
+                        Text("Send Letter")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.purple.opacity(0.1))
+                    .foregroundColor(.purple)
+                    .cornerRadius(12)
+                }
+            }
+            .padding(.horizontal)
+            
+            Spacer()
+        }
+        .padding()
     }
 }
 

@@ -9,6 +9,7 @@ class MemoryEditorViewController: UIViewController, PKCanvasViewDelegate, Canvas
     
     // UI Elements
     private let pageContainerView = UIView()
+    private let backgroundImageView = UIImageView() // New background image view
     private let bodyTextView = UITextView() // New standard text editor
     private let objectsLayer = PassThroughView()
     private let canvasView = PKCanvasView()
@@ -28,6 +29,13 @@ class MemoryEditorViewController: UIViewController, PKCanvasViewDelegate, Canvas
     }
     
     private var activeColorPickerMode: ColorPickerMode = .text
+    
+    // Formatting State
+    private var currentFont: UIFont = .systemFont(ofSize: 18)
+    private var currentTextColor: UIColor = .black
+    
+    // Toolbar
+    private let editorToolbar = EditorToolbarView()
     
     init(viewModel: EditorViewModel, isEditable: Bool = true) {
         self.viewModel = viewModel
@@ -61,7 +69,12 @@ class MemoryEditorViewController: UIViewController, PKCanvasViewDelegate, Canvas
             bodyTextView.text = viewModel.pageData.bodyText
             bodyTextView.font = .systemFont(ofSize: 18) // Default font if no attributed text
         }
+        
+        // Load background
         pageContainerView.backgroundColor = viewModel.getBackgroundColor()
+        if let bgName = viewModel.getBackgroundImageName() {
+            backgroundImageView.image = UIImage(named: bgName)
+        }
     }
     
     override func viewDidLayoutSubviews() {
@@ -88,10 +101,18 @@ class MemoryEditorViewController: UIViewController, PKCanvasViewDelegate, Canvas
         pageContainerView.frame = CGRect(origin: .zero, size: PageData.virtualSize)
         view.addSubview(pageContainerView)
         
-        // Tap on background to dismiss/deselect
-        let bgTap = UITapGestureRecognizer(target: self, action: #selector(handlePageTap))
-        bgTap.cancelsTouchesInView = false // Critical: Allow touches to pass through to toolbar
-        view.addGestureRecognizer(bgTap)
+        // Background Image View
+        backgroundImageView.translatesAutoresizingMaskIntoConstraints = false
+        backgroundImageView.contentMode = .scaleToFill // Stretch to match page size exactly
+        backgroundImageView.clipsToBounds = true
+        pageContainerView.addSubview(backgroundImageView)
+        
+        NSLayoutConstraint.activate([
+            backgroundImageView.topAnchor.constraint(equalTo: pageContainerView.topAnchor),
+            backgroundImageView.leadingAnchor.constraint(equalTo: pageContainerView.leadingAnchor),
+            backgroundImageView.trailingAnchor.constraint(equalTo: pageContainerView.trailingAnchor),
+            backgroundImageView.bottomAnchor.constraint(equalTo: pageContainerView.bottomAnchor)
+        ])
         
         // Body Text View (Standard Word-style)
         // Make it fill the entire page, but use insets for padding.
@@ -103,6 +124,12 @@ class MemoryEditorViewController: UIViewController, PKCanvasViewDelegate, Canvas
         bodyTextView.delegate = self
         bodyTextView.isScrollEnabled = false 
         bodyTextView.isUserInteractionEnabled = true // Ensure interaction
+        
+        // Canvas Tap for Keyboard Dismissal
+        let canvasTap = UITapGestureRecognizer(target: self, action: #selector(handleCanvasTap))
+        canvasTap.delegate = self
+        bodyTextView.addGestureRecognizer(canvasTap)
+        
         pageContainerView.addSubview(bodyTextView)
         
         // Objects Layer (Images) - Above text
@@ -130,12 +157,16 @@ class MemoryEditorViewController: UIViewController, PKCanvasViewDelegate, Canvas
         }
     }
     
-    @objc private func handlePageTap() {
-        // Dismiss keyboard
-        view.endEditing(true)
+    private func setupFormattingToolbar() {
+        editorToolbar.translatesAutoresizingMaskIntoConstraints = false
+        editorToolbar.delegate = self
+        view.addSubview(editorToolbar)
         
-        // Deselect all images
-        deselectAllElements()
+        NSLayoutConstraint.activate([
+            editorToolbar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            editorToolbar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            editorToolbar.bottomAnchor.constraint(equalTo: view.bottomAnchor), // Pin to bottom (handles safe area internally)
+        ])
     }
     
     private func deselectAllElements() {
@@ -150,8 +181,16 @@ class MemoryEditorViewController: UIViewController, PKCanvasViewDelegate, Canvas
         var rightItems: [UIBarButtonItem] = []
         var leftItems: [UIBarButtonItem] = []
         
-        let saveBtn = UIBarButtonItem(title: "Salva", style: .done, target: self, action: #selector(saveAction))
-        rightItems.append(saveBtn)
+        if viewModel.recipient != nil {
+            // Send Mode
+            let sendBtn = UIBarButtonItem(title: "Invia", style: .done, target: self, action: #selector(sendAction))
+            sendBtn.tintColor = .systemBlue
+            rightItems.append(sendBtn)
+        } else {
+            // Edit/Save Mode
+            let saveBtn = UIBarButtonItem(title: "Salva", style: .done, target: self, action: #selector(saveAction))
+            rightItems.append(saveBtn)
+        }
         
         if isiPad {
             let modeBtn = UIBarButtonItem(image: UIImage(systemName: "hand.draw"), style: .plain, target: self, action: #selector(toggleMode))
@@ -161,10 +200,56 @@ class MemoryEditorViewController: UIViewController, PKCanvasViewDelegate, Canvas
         let photoBtn = UIBarButtonItem(image: UIImage(systemName: "photo.on.rectangle"), style: .plain, target: self, action: #selector(openPhotoPicker))
         leftItems.append(photoBtn)
         
-        // No "Add Text" button anymore, text is always there.
+        // Back Button
+        let backBtn = UIBarButtonItem(image: UIImage(systemName: "chevron.left"), style: .plain, target: self, action: #selector(handleBack))
+        leftItems.insert(backBtn, at: 0) // Add to start
         
         navigationItem.rightBarButtonItems = rightItems
         navigationItem.leftBarButtonItems = leftItems
+    }
+    
+    @objc private func sendAction() {
+        guard let snapshotData = generateSnapshot() else {
+            let alert = UIAlertController(title: "Errore", message: "Impossibile generare l'immagine della lettera.", preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "OK", style: .default))
+            present(alert, animated: true)
+            return
+        }
+        
+        // Show loading indicator
+        let loadingAlert = UIAlertController(title: "Invio in corso...", message: nil, preferredStyle: .alert)
+        let indicator = UIActivityIndicatorView(frame: CGRect(x: 10, y: 5, width: 50, height: 50))
+        indicator.hidesWhenStopped = true
+        indicator.startAnimating()
+        loadingAlert.view.addSubview(indicator)
+        present(loadingAlert, animated: true)
+        
+        Task {
+            do {
+                try await viewModel.sendLetter(imageData: snapshotData)
+                dismiss(animated: true) { [weak self] in
+                    self?.dismiss(animated: true) // Dismiss editor
+                }
+            } catch {
+                dismiss(animated: true) { [weak self] in
+                    let alert = UIAlertController(title: "Errore", message: error.localizedDescription, preferredStyle: .alert)
+                    alert.addAction(UIAlertAction(title: "OK", style: .default))
+                    self?.present(alert, animated: true)
+                }
+            }
+        }
+    }
+    
+    private func generateSnapshot() -> Data? {
+        let renderer = UIGraphicsImageRenderer(bounds: pageContainerView.bounds)
+        let image = renderer.image { context in
+            pageContainerView.drawHierarchy(in: pageContainerView.bounds, afterScreenUpdates: true)
+        }
+        return image.jpegData(compressionQuality: 0.8)
+    }
+    
+    @objc private func handleBack() {
+        dismiss(animated: true)
     }
     
     private func fitPageToScreen() {
@@ -209,9 +294,6 @@ class MemoryEditorViewController: UIViewController, PKCanvasViewDelegate, Canvas
         canvasView.isUserInteractionEnabled = isDrawingMode
         toolPicker.setVisible(isDrawingMode, forFirstResponder: canvasView)
         if isDrawingMode { canvasView.becomeFirstResponder() } else { canvasView.resignFirstResponder() }
-        
-        // If drawing mode is on, we might want to disable text interaction to avoid conflict?
-        // Or keep both. For now, let's keep both active but PencilKit usually eats touches.
         bodyTextView.isUserInteractionEnabled = !isDrawingMode
     }
     
@@ -255,7 +337,6 @@ class MemoryEditorViewController: UIViewController, PKCanvasViewDelegate, Canvas
     
     func textViewDidChangeSelection(_ textView: UITextView) {
         // Ensure that if we just moved the cursor (length 0), we enforce our "pen" style
-        // This prevents the text view from picking up the style of the character before/after the cursor
         if textView.selectedRange.length == 0 {
             var attributes = textView.typingAttributes
             attributes[.font] = currentFont
@@ -266,7 +347,6 @@ class MemoryEditorViewController: UIViewController, PKCanvasViewDelegate, Canvas
             editorToolbar.updateSliderValue(Float(currentFont.pointSize))
         } else {
             // If text IS selected, update our internal state to match the selection
-            // So if user selects red text, the "pen" becomes red
             if let font = textView.typingAttributes[.font] as? UIFont {
                 currentFont = font
                 editorToolbar.updateSliderValue(Float(font.pointSize))
@@ -276,25 +356,6 @@ class MemoryEditorViewController: UIViewController, PKCanvasViewDelegate, Canvas
             }
         }
     }
-
-    // MARK: - Formatting Tools
-    
-    private let editorToolbar = EditorToolbarView()
-    
-    private func setupFormattingToolbar() {
-        editorToolbar.translatesAutoresizingMaskIntoConstraints = false
-        editorToolbar.delegate = self
-        view.addSubview(editorToolbar)
-        
-        NSLayoutConstraint.activate([
-            editorToolbar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            editorToolbar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            editorToolbar.bottomAnchor.constraint(equalTo: view.bottomAnchor), // Pin to bottom (handles safe area internally)
-        ])
-    }
-    
-    private var currentFont: UIFont = .systemFont(ofSize: 18)
-    private var currentTextColor: UIColor = .black
     
     private func updateTextAttributes(_ attributes: [NSAttributedString.Key: Any]) {
         // Update local state variables
@@ -311,13 +372,57 @@ class MemoryEditorViewController: UIViewController, PKCanvasViewDelegate, Canvas
         }
         
         // ALWAYS update typing attributes for future text
-        // This ensures that even if we move the cursor, the "pen" stays as selected
         var newAttributes = bodyTextView.typingAttributes
         newAttributes[.font] = currentFont
         newAttributes[.foregroundColor] = currentTextColor
         bodyTextView.typingAttributes = newAttributes
         
         viewModel.updateAttributedBodyText(bodyTextView.attributedText)
+    }
+    
+    // MARK: - Gestures
+    
+    @objc private func handleCanvasTap() {
+        view.endEditing(true)
+    }
+}
+
+// MARK: - UIGestureRecognizerDelegate
+extension MemoryEditorViewController: UIGestureRecognizerDelegate {
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        // Only handle our specific tap gesture on the text view
+        if gestureRecognizer.view == bodyTextView {
+            // If keyboard is NOT open, don't interfere (let it open)
+            guard bodyTextView.isFirstResponder else { return false }
+            
+            let point = touch.location(in: bodyTextView)
+            let layoutManager = bodyTextView.layoutManager
+            let textContainer = bodyTextView.textContainer
+            
+            // Adjust point to text container coordinates
+            var location = point
+            location.x -= bodyTextView.textContainerInset.left
+            location.y -= bodyTextView.textContainerInset.top
+            
+            // If text is empty, any tap is whitespace -> dismiss
+            if bodyTextView.text.isEmpty {
+                return true
+            }
+            
+            // Find glyph index at this point
+            let glyphIndex = layoutManager.glyphIndex(for: location, in: textContainer)
+            
+            // Check if the point is within the line fragment of the glyph
+            var effectiveRange = NSRange(location: 0, length: 0)
+            let lineRect = layoutManager.lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: &effectiveRange)
+            
+            if lineRect.contains(location) {
+                return false // It's on a text line -> let text view handle it (move cursor)
+            }
+            
+            return true // It's whitespace -> dismiss
+        }
+        return true
     }
 }
 
@@ -327,7 +432,9 @@ extension MemoryEditorViewController: EditorToolbarDelegate {
         let config = UIFontPickerViewController.Configuration()
         config.includeFaces = true
         config.displayUsingSystemFont = false 
+        config.filteredTraits = [] // Allow all fonts, even single-style ones
         let picker = UIFontPickerViewController(configuration: config)
+        picker.selectedFontDescriptor = currentFont.fontDescriptor // Show checkmark on current font
         picker.delegate = self
         present(picker, animated: true)
     }
@@ -341,10 +448,11 @@ extension MemoryEditorViewController: EditorToolbarDelegate {
     }
     
     func didTapBackgroundColor() {
-        let picker = UIColorPickerViewController()
-        picker.selectedColor = pageContainerView.backgroundColor ?? .white
+        let picker = BackgroundPickerViewController()
         picker.delegate = self
-        activeColorPickerMode = .background
+        if let sheet = picker.sheetPresentationController {
+            sheet.detents = [.medium()]
+        }
         present(picker, animated: true)
     }
     
@@ -359,8 +467,28 @@ extension MemoryEditorViewController: EditorToolbarDelegate {
     }
 }
 
+// MARK: - BackgroundPickerDelegate
+extension MemoryEditorViewController: BackgroundPickerDelegate {
+    func didSelectBackgroundColor(_ color: UIColor) {
+        pageContainerView.backgroundColor = color
+        backgroundImageView.image = nil // Clear image if color selected
+        viewModel.updateBackgroundColor(color)
+        viewModel.updateBackgroundImageName(nil)
+    }
+    
+    func didSelectBackgroundImage(_ imageName: String) {
+        backgroundImageView.image = UIImage(named: imageName)
+        pageContainerView.backgroundColor = .clear // Clear base color so only image shows
+        viewModel.updateBackgroundImageName(imageName)
+    }
+}
+
+// MARK: - UIFontPickerViewControllerDelegate
 extension MemoryEditorViewController: UIFontPickerViewControllerDelegate {
     func fontPickerViewControllerDidPickFont(_ viewController: UIFontPickerViewController) {
+        // Dismiss first to show the user the selection is accepted
+        viewController.dismiss(animated: true)
+        
         guard let descriptor = viewController.selectedFontDescriptor else { return }
         // Keep current size
         let newFont = UIFont(descriptor: descriptor, size: currentFont.pointSize)
@@ -368,6 +496,7 @@ extension MemoryEditorViewController: UIFontPickerViewControllerDelegate {
     }
 }
 
+// MARK: - UIColorPickerViewControllerDelegate
 extension MemoryEditorViewController: UIColorPickerViewControllerDelegate {
     func colorPickerViewControllerDidFinish(_ viewController: UIColorPickerViewController) {
         let color = viewController.selectedColor
@@ -379,21 +508,19 @@ extension MemoryEditorViewController: UIColorPickerViewControllerDelegate {
     }
     
     private func applyColor(_ color: UIColor) {
-        switch activeColorPickerMode {
-        case .text:
+        // Only handle text color here as background is handled by custom picker
+        if activeColorPickerMode == .text {
             updateTextAttributes([.foregroundColor: color])
-        case .background:
-            pageContainerView.backgroundColor = color
-            viewModel.updateBackgroundColor(color)
         }
     }
 }
 
+// MARK: - PHPickerViewControllerDelegate
 extension MemoryEditorViewController: PHPickerViewControllerDelegate {
     func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
         picker.dismiss(animated: true)
         guard let provider = results.first?.itemProvider,
-              provider.canLoadObject(ofClass: UIImage.self) else { return }
+               provider.canLoadObject(ofClass: UIImage.self) else { return }
         
         provider.loadObject(ofClass: UIImage.self) { [weak self] image, error in
             guard let self = self, let image = image as? UIImage else { return }

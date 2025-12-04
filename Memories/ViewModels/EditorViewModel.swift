@@ -1,14 +1,27 @@
 import Foundation
 import UIKit
+import Combine
 import PencilKit
 
 class EditorViewModel {
     
     var onDataLoaded: (() -> Void)?
-    private(set) var pageData: PageData
+    @Published var pageData: PageData
+    @Published var recipient: Profile? // If set, we are in "Letter Mode"
+    @Published var isSending: Bool = false
     
-    init(pageData: PageData) {
+    init(pageData: PageData, recipient: Profile? = nil) {
         self.pageData = pageData
+        self.recipient = recipient
+    }
+    
+    func sendLetter(imageData: Data) async throws {
+        guard let recipient = recipient else { return }
+        
+        await MainActor.run { self.isSending = true }
+        defer { Task { await MainActor.run { self.isSending = false } } }
+        
+        try await SocialService.shared.sendLetter(recipientId: recipient.id, imageData: imageData)
     }
     
     func updateBodyText(_ text: String) {
@@ -53,6 +66,14 @@ class EditorViewModel {
             print("Error loading background color: \(error)")
         }
         return .white
+    }
+    
+    func updateBackgroundImageName(_ name: String?) {
+        pageData.backgroundImageName = name
+    }
+    
+    func getBackgroundImageName() -> String? {
+        return pageData.backgroundImageName
     }
     
     func addImage(imageData: Data, imageSize: CGSize, center: CGPoint) {

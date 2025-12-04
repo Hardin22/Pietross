@@ -103,14 +103,26 @@ struct LoginScreenWrapper: UIViewControllerRepresentable {
 }
 
 struct MemoryEditorWrapper: UIViewControllerRepresentable {
-    let book: Book
+    let book: Book?
+    let recipient: Profile? // Optional recipient for letters
+    
+    init(book: Book? = nil, recipient: Profile? = nil) {
+        self.book = book
+        self.recipient = recipient
+    }
     
     func makeUIViewController(context: Context) -> UINavigationController {
         // In future, pass book.id to EditorViewModel to load specific pages
         let defaultPage = PageData(id: UUID(), drawingData: Data(), items: [], bodyText: "")
-        let vm = EditorViewModel(pageData: defaultPage) 
+        let vm = EditorViewModel(pageData: defaultPage, recipient: recipient) 
         let vc = MemoryEditorViewController(viewModel: vm)
-        vc.title = book.title
+        
+        if let recipient = recipient {
+            vc.title = "Letter to \(recipient.username ?? "Friend")"
+        } else {
+            vc.title = book?.title ?? "Memories"
+        }
+        
         let nav = UINavigationController(rootViewController: vc)
         let appearance = UINavigationBarAppearance()
         appearance.configureWithTransparentBackground()
