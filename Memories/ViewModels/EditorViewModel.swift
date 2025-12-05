@@ -16,7 +16,9 @@ class EditorViewModel {
     }
     
     func sendLetter(imageData: Data) async throws {
-        guard let recipient = recipient else { return }
+        guard let recipient = recipient else {
+            throw NSError(domain: "Memories", code: 400, userInfo: [NSLocalizedDescriptionKey: "Errore: Nessun destinatario selezionato per questa lettera."])
+        }
         
         await MainActor.run { self.isSending = true }
         defer { Task { await MainActor.run { self.isSending = false } } }

@@ -1,11 +1,22 @@
 import SwiftUI
 
+enum EditorConfig: Identifiable {
+    case letter(Profile)
+    case book(Book)
+    
+    var id: String {
+        switch self {
+        case .letter(let p): return "letter_\(p.id)"
+        case .book(let b): return "book_\(b.id)"
+        }
+    }
+}
+
 struct SocialView: View {
     @StateObject private var viewModel = SocialViewModel()
     @State private var selectedFriend: Profile?
-    @State private var showCanvas = false
     @State private var showRequests = false
-    @State private var letterRecipient: Profile? // Specific for sending letters
+    @State private var editorConfig: EditorConfig? // Single source of truth for editor
     
     var body: some View {
         NavigationView {
@@ -98,8 +109,8 @@ struct SocialView: View {
                             
                             if viewModel.friends.isEmpty {
                                 Text("No friends yet. Search to add some!")
-                                    .foregroundColor(.secondary)
-                                    .padding(.horizontal)
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal)
                             } else {
                                 ScrollView(.horizontal, showsIndicators: false) {
                                     HStack(spacing: 20) {
@@ -146,25 +157,27 @@ struct SocialView: View {
                 FriendDetailSheet(friend: friend) { action in
                     selectedFriend = nil // Close sheet
                     
-                    switch action {
-                    case .openBook:
-                        // Open book logic (placeholder for now)
-                        showCanvas = true
-                        letterRecipient = nil
-                    case .sendLetter:
-                        letterRecipient = friend
-                        showCanvas = true
+                    // Small delay to ensure sheet dismissal doesn't conflict with fullScreenCover
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        switch action {
+                        case .openBook:
+                            // Placeholder book
+                            let dummyBook = Book(id: UUID(), friendshipId: UUID(), coverUrl: nil, title: "Memories", createdAt: Date())
+                            editorConfig = .book(dummyBook)
+                        case .sendLetter:
+                            editorConfig = .letter(friend)
+                        }
                     }
                 }
                 .presentationDetents([.fraction(0.4)])
             }
-            .fullScreenCover(isPresented: $showCanvas) {
-                if let recipient = letterRecipient {
+            .fullScreenCover(item: $editorConfig) { config in
+                switch config {
+                case .letter(let recipient):
                     MemoryEditorWrapper(recipient: recipient)
                         .ignoresSafeArea(.all)
-                } else {
-                    let dummyBook = Book(id: UUID(), friendshipId: UUID(), coverUrl: nil, title: "Memories", createdAt: Date())
-                    MemoryEditorWrapper(book: dummyBook)
+                case .book(let book):
+                    MemoryEditorWrapper(book: book)
                         .ignoresSafeArea(.all)
                 }
             }
