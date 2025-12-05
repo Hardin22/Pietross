@@ -57,7 +57,7 @@ class SocialService {
     func getPendingRequests() async throws -> [Friendship] {
         guard let currentUser = client.auth.currentUser else { return [] }
         
-        let response: [Friendship] = try await client
+        var requests: [Friendship] = try await client
             .from(AppConstants.Table.friendships)
             .select()
             .or("user_a.eq.\(currentUser.id),user_b.eq.\(currentUser.id)")
@@ -65,7 +65,38 @@ class SocialService {
             .execute()
             .value
             
-        return response
+        if requests.isEmpty { return [] }
+        
+        // Identify the "other" user (the sender of the request)
+        // If I am userA, sender is userB. If I am userB, sender is userA.
+        // Wait, "pending" request means someone sent it TO me.
+        // But the DB doesn't strictly say who initiated.
+        // Usually we assume the one who created it is the initiator.
+        // But here we just want to show the "other" person.
+        
+        var senderIds: [UUID] = []
+        for req in requests {
+            if req.userA == currentUser.id {
+                senderIds.append(req.userB)
+            } else {
+                senderIds.append(req.userA)
+            }
+        }
+        
+        let profiles: [Profile] = try await client
+            .from(AppConstants.Table.profiles)
+            .select()
+            .in("id", values: senderIds)
+            .execute()
+            .value
+            
+        // Map senders
+        for i in 0..<requests.count {
+            let otherId = requests[i].userA == currentUser.id ? requests[i].userB : requests[i].userA
+            requests[i].sender = profiles.first(where: { $0.id == otherId })
+        }
+            
+        return requests
     }
     
     func declineFriendRequest(friendshipId: UUID) async throws {
@@ -257,6 +288,7 @@ class SocialService {
             senderId: currentUser.id,
             recipientId: recipientId,
             imageUrl: signedUrl.absoluteString,
+            isRead: false,
             createdAt: Date()
         )
         
@@ -269,7 +301,7 @@ class SocialService {
     func getReceivedLetters() async throws -> [Letter] {
         guard let currentUser = client.auth.currentUser else { return [] }
         
-        let letters: [Letter] = try await client
+        var letters: [Letter] = try await client
             .from(AppConstants.Table.letters)
             .select()
             .eq("recipient_id", value: currentUser.id)
@@ -277,6 +309,30 @@ class SocialService {
             .execute()
             .value
             
+        if letters.isEmpty { return [] }
+        
+        // Fetch senders
+        let senderIds = Array(Set(letters.map { $0.senderId }))
+        let profiles: [Profile] = try await client
+            .from(AppConstants.Table.profiles)
+            .select()
+            .in("id", values: senderIds)
+            .execute()
+            .value
+            
+        // Map senders to letters
+        for i in 0..<letters.count {
+            letters[i].sender = profiles.first(where: { $0.id == letters[i].senderId })
+        }
+            
         return letters
+    }
+    
+    func markLetterAsRead(id: UUID) async throws {
+        try await client
+            .from(AppConstants.Table.letters)
+            .update(["is_read": true])
+            .eq("id", value: id)
+            .execute()
     }
 }

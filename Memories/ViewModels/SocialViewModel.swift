@@ -15,6 +15,11 @@ class SocialViewModel: ObservableObject {
     @Published var currentUser: Profile?
     @Published var searchText: String = ""
     
+    var unreadCount: Int {
+        let unreadLetters = receivedLetters.filter { !$0.isRead }.count
+        return unreadLetters + pendingRequests.count
+    }
+    
     private let socialService = SocialService.shared
     private var cancellables = Set<AnyCancellable>()
     
@@ -52,22 +57,39 @@ class SocialViewModel: ObservableObject {
     
     @MainActor
     func subscribeToRealtimeUpdates() async {
-        let channel = SupabaseManager.shared.client.channel(AppConstants.Realtime.friendshipsChannel)
-        
-        let changes = channel.postgresChange(
+        // Friendships Subscription
+        let friendshipsChannel = SupabaseManager.shared.client.channel(AppConstants.Realtime.friendshipsChannel)
+        let friendshipChanges = friendshipsChannel.postgresChange(
             AnyAction.self,
             schema: "public",
             table: AppConstants.Table.friendships
         )
+        await friendshipsChannel.subscribe()
         
-        await channel.subscribe()
+        // Letters Subscription
+        let lettersChannel = SupabaseManager.shared.client.channel(AppConstants.Realtime.lettersChannel)
+        let letterChanges = lettersChannel.postgresChange(
+            AnyAction.self,
+            schema: "public",
+            table: AppConstants.Table.letters
+        )
+        await lettersChannel.subscribe()
         
+        // Handle Friendships
         Task {
-            for await _ in changes {
+            for await _ in friendshipChanges {
                 print("Realtime: Friendship changed")
                 await self.fetchPendingRequests()
                 await self.fetchBooks()
                 await self.fetchFriends()
+            }
+        }
+        
+        // Handle Letters
+        Task {
+            for await _ in letterChanges {
+                print("Realtime: Letter received")
+                await self.fetchReceivedLetters()
             }
         }
     }
@@ -163,6 +185,35 @@ class SocialViewModel: ObservableObject {
             await fetchPendingRequests()
         } catch {
             self.errorMessage = "Failed to decline request: \(error.localizedDescription)"
+        }
+    }
+    
+    func markLetterAsRead(_ letter: Letter) {
+        guard !letter.isRead else { return }
+        
+        // Optimistic update
+        if let index = receivedLetters.firstIndex(where: { $0.id == letter.id }) {
+            // Create a new Letter instance with isRead = true
+            // Since Letter properties are 'let', we need to recreate it.
+            var updatedLetter = Letter(
+                id: letter.id,
+                senderId: letter.senderId,
+                recipientId: letter.recipientId,
+                imageUrl: letter.imageUrl,
+                isRead: true,
+                createdAt: letter.createdAt
+            )
+            updatedLetter.sender = letter.sender
+            receivedLetters[index] = updatedLetter
+        }
+        
+        Task {
+            do {
+                try await socialService.markLetterAsRead(id: letter.id)
+                await fetchReceivedLetters() // Refresh to get updated status
+            } catch {
+                print("Failed to mark letter as read: \(error)")
+            }
         }
     }
     

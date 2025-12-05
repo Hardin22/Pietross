@@ -7,38 +7,42 @@ struct RequestRow: View {
     
     var body: some View {
         HStack {
-            Image(systemName: "person.fill.questionmark")
-                .padding(10)
-                .background(Color.orange.opacity(0.2))
-                .clipShape(Circle())
-            
-            VStack(alignment: .leading) {
-                Text("New Friend Request")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                Text("Tap to accept")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+            if let sender = request.sender {
+                AvatarView(avatarUrl: sender.avatarUrl, username: sender.username, size: 50)
+                
+                VStack(alignment: .leading) {
+                    Text(sender.username ?? "Unknown")
+                        .font(.headline)
+                    Text("Sent a friend request")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            } else {
+                Text("Unknown User")
             }
             
             Spacer()
             
-            HStack(spacing: 16) {
+            HStack(spacing: 12) {
                 Button(action: onDecline) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.title2)
+                    Image(systemName: "xmark")
                         .foregroundColor(.red)
+                        .padding(8)
+                        .background(Color.red.opacity(0.1))
+                        .clipShape(Circle())
                 }
+                .buttonStyle(PlainButtonStyle())
                 
                 Button(action: onAccept) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.title2)
+                    Image(systemName: "checkmark")
                         .foregroundColor(.green)
+                        .padding(8)
+                        .background(Color.green.opacity(0.1))
+                        .clipShape(Circle())
                 }
+                .buttonStyle(PlainButtonStyle())
             }
         }
-        .padding()
-        .background(Color(UIColor.secondarySystemGroupedBackground))
-        .cornerRadius(12)
+        .padding(.vertical, 4)
     }
 }

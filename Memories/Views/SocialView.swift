@@ -53,8 +53,8 @@ struct SocialView: View {
                                             .background(Color(UIColor.secondarySystemGroupedBackground))
                                             .clipShape(Circle())
                                         
-                                        if !viewModel.pendingRequests.isEmpty {
-                                            Text("\(viewModel.pendingRequests.count)")
+                                        if viewModel.unreadCount > 0 {
+                                            Text("\(viewModel.unreadCount)")
                                                 .font(.caption2)
                                                 .fontWeight(.bold)
                                                 .foregroundColor(.white)

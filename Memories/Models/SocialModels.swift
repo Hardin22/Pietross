@@ -25,6 +25,8 @@ struct Friendship: Codable, Identifiable {
     let status: FriendshipStatus
     let createdAt: Date
     
+    var sender: Profile? // Populated manually (the user who sent the request)
+    
     enum CodingKeys: String, CodingKey {
         case id
         case userA = "user_a"

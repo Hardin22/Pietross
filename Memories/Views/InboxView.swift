@@ -72,25 +72,37 @@ struct InboxView: View {
                         } else {
                             ForEach(viewModel.receivedLetters) { letter in
                                 Button(action: {
+                                    viewModel.markLetterAsRead(letter)
                                     selectedLetter = letter
                                 }) {
                                     HStack {
-                                        Image(systemName: "envelope.open.fill")
-                                            .font(.title2)
-                                            .foregroundColor(.purple)
-                                            .padding(8)
-                                            .background(Color.purple.opacity(0.1))
-                                            .clipShape(Circle())
+                                        // Sender Avatar
+                                        if let sender = letter.sender {
+                                            AvatarView(avatarUrl: sender.avatarUrl, username: sender.username, size: 50)
+                                        } else {
+                                            Image(systemName: "person.circle.fill")
+                                                .resizable()
+                                                .frame(width: 50, height: 50)
+                                                .foregroundColor(.gray)
+                                        }
                                         
-                                        VStack(alignment: .leading) {
-                                            Text("New Letter")
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(letter.sender?.username ?? "Unknown")
                                                 .font(.headline)
+                                                .foregroundColor(.primary)
+                                            
                                             Text(letter.createdAt.formatted(date: .abbreviated, time: .shortened))
                                                 .font(.caption)
                                                 .foregroundColor(.secondary)
                                         }
                                         
                                         Spacer()
+                                        
+                                        if !letter.isRead {
+                                            Circle()
+                                                .fill(Color.blue)
+                                                .frame(width: 10, height: 10)
+                                        }
                                         
                                         Image(systemName: "chevron.right")
                                             .font(.caption)
@@ -138,3 +150,5 @@ struct InboxView: View {
         }
     }
 }
+
+

@@ -16,5 +16,6 @@ struct AppConstants {
     
     struct Realtime {
         static let friendshipsChannel = "public:friendships"
+        static let lettersChannel = "public:letters"
     }
 }
