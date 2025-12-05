@@ -32,10 +32,9 @@ class SocialService {
             throw NSError(domain: "Auth", code: 401, userInfo: [NSLocalizedDescriptionKey: "User not logged in"])
         }
         
-        // Determine user_a and user_b based on UUID sort order
-        let (userA, userB) = currentUser.id.uuidString < userId.uuidString 
-            ? (currentUser.id, userId) 
-            : (userId, currentUser.id)
+        // Explicitly set user_a as sender (current user) and user_b as recipient (target user)
+        let userA = currentUser.id
+        let userB = userId
         
         // Check if friendship already exists (optional but good practice)
         // For now relying on DB constraint if any, or just insert.
@@ -57,31 +56,19 @@ class SocialService {
     func getPendingRequests() async throws -> [Friendship] {
         guard let currentUser = client.auth.currentUser else { return [] }
         
+        // Only fetch requests where I am the recipient (user_b)
         var requests: [Friendship] = try await client
             .from(AppConstants.Table.friendships)
             .select()
-            .or("user_a.eq.\(currentUser.id),user_b.eq.\(currentUser.id)")
+            .eq("user_b", value: currentUser.id)
             .eq("status", value: "pending")
             .execute()
             .value
             
         if requests.isEmpty { return [] }
         
-        // Identify the "other" user (the sender of the request)
-        // If I am userA, sender is userB. If I am userB, sender is userA.
-        // Wait, "pending" request means someone sent it TO me.
-        // But the DB doesn't strictly say who initiated.
-        // Usually we assume the one who created it is the initiator.
-        // But here we just want to show the "other" person.
-        
-        var senderIds: [UUID] = []
-        for req in requests {
-            if req.userA == currentUser.id {
-                senderIds.append(req.userB)
-            } else {
-                senderIds.append(req.userA)
-            }
-        }
+        // Sender is always user_a
+        let senderIds = requests.map { $0.userA }
         
         let profiles: [Profile] = try await client
             .from(AppConstants.Table.profiles)
@@ -92,8 +79,7 @@ class SocialService {
             
         // Map senders
         for i in 0..<requests.count {
-            let otherId = requests[i].userA == currentUser.id ? requests[i].userB : requests[i].userA
-            requests[i].sender = profiles.first(where: { $0.id == otherId })
+            requests[i].sender = profiles.first(where: { $0.id == requests[i].userA })
         }
             
         return requests
