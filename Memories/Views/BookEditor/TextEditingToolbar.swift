@@ -1,57 +1,64 @@
 import SwiftUI
 
+/// Available font families for text elements
+enum FontFamily: String, CaseIterable, Identifiable {
+    case system = "System"
+    case arial = "Arial"
+    case helvetica = "Helvetica"
+    case georgia = "Georgia"
+    case timesNewRoman = "Times New Roman"
+    case courier = "Courier"
+    case avenir = "Avenir"
+    case futura = "Futura"
+    case palatino = "Palatino"
+    case baskerville = "Baskerville"
+
+    var id: String { rawValue }
+
+    var displayName: String { rawValue }
+}
+
 /// Contextual toolbar for editing text element properties
 struct TextEditingToolbar: View {
     let textElement: TextElement
     let onUpdate: (TextElement) -> Void
-    
-    @State private var showingFontPicker = false
-    @State private var showingColorPicker = false
-    @State private var editedText: String = ""
-    @State private var isEditingText = false
-    
+
     var body: some View {
         VStack(spacing: 0) {
-            // Text content editor
-            if isEditingText {
-                HStack {
-                    TextField("Enter text", text: $editedText)
-                        .textFieldStyle(.roundedBorder)
-                        .submitLabel(.done)
-                        .onSubmit {
-                            var updated = textElement
-                            updated.content = editedText
-                            onUpdate(updated)
-                            isEditingText = false
-                        }
-                    
-                    Button("Done") {
-                        var updated = textElement
-                        updated.content = editedText
-                        onUpdate(updated)
-                        isEditingText = false
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-            }
-            
             // Formatting toolbar
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 16) {
-                    // Edit text button
-                    Button(action: {
-                        editedText = textElement.content
-                        isEditingText.toggle()
-                    }) {
-                        Image(systemName: "pencil")
-                            .toolbarButtonStyle(isActive: isEditingText)
+                HStack(spacing: 12) {
+                    // Font family picker
+                    Menu {
+                        ForEach(FontFamily.allCases) { font in
+                            Button(action: {
+                                var updated = textElement
+                                updated.fontFamily = font.rawValue
+                                onUpdate(updated)
+                            }) {
+                                HStack {
+                                    Text(font.displayName)
+                                        .font(font.rawValue == "System" ? .body : .custom(font.rawValue, size: 16))
+                                    if textElement.fontFamily == font.rawValue {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "textformat")
+                            Text(fontDisplayName)
+                                .font(.caption)
+                                .lineLimit(1)
+                        }
+                        .toolbarButtonStyle()
+                        .frame(minWidth: 80)
                     }
-                    
+
                     Divider()
                         .frame(height: 24)
-                    
+
                     // Font size controls
                     HStack(spacing: 8) {
                         Button(action: {
@@ -62,11 +69,11 @@ struct TextEditingToolbar: View {
                             Image(systemName: "textformat.size.smaller")
                                 .toolbarButtonStyle()
                         }
-                        
+
                         Text("\(Int(textElement.fontSize))")
                             .font(.caption)
                             .frame(width: 30)
-                        
+
                         Button(action: {
                             var updated = textElement
                             updated.fontSize = min(72, textElement.fontSize + 2)
@@ -76,10 +83,10 @@ struct TextEditingToolbar: View {
                                 .toolbarButtonStyle()
                         }
                     }
-                    
+
                     Divider()
                         .frame(height: 24)
-                    
+
                     // Text style buttons
                     Button(action: {
                         var updated = textElement
@@ -89,7 +96,7 @@ struct TextEditingToolbar: View {
                         Image(systemName: "bold")
                             .toolbarButtonStyle(isActive: textElement.isBold)
                     }
-                    
+
                     Button(action: {
                         var updated = textElement
                         updated.isItalic.toggle()
@@ -98,7 +105,7 @@ struct TextEditingToolbar: View {
                         Image(systemName: "italic")
                             .toolbarButtonStyle(isActive: textElement.isItalic)
                     }
-                    
+
                     Button(action: {
                         var updated = textElement
                         updated.isUnderlined.toggle()
@@ -107,10 +114,10 @@ struct TextEditingToolbar: View {
                         Image(systemName: "underline")
                             .toolbarButtonStyle(isActive: textElement.isUnderlined)
                     }
-                    
+
                     Divider()
                         .frame(height: 24)
-                    
+
                     // Alignment buttons
                     ForEach(TextAlignmentType.allCases, id: \.self) { alignment in
                         Button(action: {
@@ -122,10 +129,42 @@ struct TextEditingToolbar: View {
                                 .toolbarButtonStyle(isActive: textElement.textAlignment == alignment)
                         }
                     }
-                    
+
                     Divider()
                         .frame(height: 24)
-                    
+
+                    // Line height controls
+                    HStack(spacing: 6) {
+                        Image(systemName: "line.3.horizontal")
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
+
+                        Button(action: {
+                            var updated = textElement
+                            updated.lineHeight = max(0.8, textElement.lineHeight - 0.1)
+                            onUpdate(updated)
+                        }) {
+                            Image(systemName: "minus")
+                                .toolbarButtonStyle()
+                        }
+
+                        Text(String(format: "%.1f", textElement.lineHeight))
+                            .font(.caption)
+                            .frame(width: 30)
+
+                        Button(action: {
+                            var updated = textElement
+                            updated.lineHeight = min(3.0, textElement.lineHeight + 0.1)
+                            onUpdate(updated)
+                        }) {
+                            Image(systemName: "plus")
+                                .toolbarButtonStyle()
+                        }
+                    }
+
+                    Divider()
+                        .frame(height: 24)
+
                     // Color picker
                     ColorPicker("", selection: colorBinding)
                         .labelsHidden()
@@ -139,7 +178,19 @@ struct TextEditingToolbar: View {
         .cornerRadius(12, corners: [.topLeft, .topRight])
         .shadow(color: .black.opacity(0.1), radius: 5, y: -2)
     }
-    
+
+    private var fontDisplayName: String {
+        if textElement.fontFamily == "System" {
+            return "System"
+        }
+        // Shorten long font names
+        let name = textElement.fontFamily
+        if name.count > 10 {
+            return String(name.prefix(8)) + "..."
+        }
+        return name
+    }
+
     private var colorBinding: Binding<Color> {
         Binding(
             get: { Color(hex: textElement.textColor) },
@@ -150,12 +201,13 @@ struct TextEditingToolbar: View {
             }
         )
     }
-    
+
     private func alignmentIcon(for alignment: TextAlignmentType) -> String {
         switch alignment {
         case .left: return "text.alignleft"
         case .center: return "text.aligncenter"
         case .right: return "text.alignright"
+        case .justify: return "text.justify"
         }
     }
 }

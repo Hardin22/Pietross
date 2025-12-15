@@ -290,6 +290,7 @@ struct TextElementView: View {
             .foregroundColor(element.content.isEmpty ? Color.gray.opacity(0.5) : Color(hex: element.textColor))
             .underline(element.isUnderlined)
             .multilineTextAlignment(element.textAlignment.alignment)
+            .lineSpacing((element.lineHeight - 1.0) * element.fontSize)
             .lineLimit(nil) // Allow unlimited lines for text wrapping
             .fixedSize(horizontal: false, vertical: false) // Allow text to wrap and expand
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignmentFromTextAlignment)
@@ -316,6 +317,7 @@ struct TextElementView: View {
         case .left: return .leading
         case .center: return .center
         case .right: return .trailing
+        case .justify: return .leading
         }
     }
 }
@@ -335,6 +337,7 @@ struct EditableTextElementView: View {
             .foregroundColor(Color(hex: element.textColor))
             .underline(element.isUnderlined)
             .multilineTextAlignment(element.textAlignment.alignment)
+            .lineSpacing((element.lineHeight - 1.0) * element.fontSize)
             .lineLimit(nil)
             .focused(isFocused)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignmentFromTextAlignment)
@@ -372,6 +375,7 @@ struct EditableTextElementView: View {
         case .left: return .leading
         case .center: return .center
         case .right: return .trailing
+        case .justify: return .leading
         }
     }
 }

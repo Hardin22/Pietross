@@ -6,39 +6,36 @@ struct MainTabView: View {
 
     var body: some View {
         TabView {
-            SocialView()
+            //SocialView()
+            //    .tabItem {
+            //        Label("Home", systemImage: "house.fill")
+            //    }
+            
+            HomeView()
                 .tabItem {
                     Label("Home", systemImage: "house.fill")
                 }
-
-            LettersView()
-                .tabItem {
-                    Label("Letters", systemImage: "envelope.fill")
+            
+            FriendsView()
+                .tabItem{
+                    Label("Friends", systemImage: "figure.2.right.holdinghands")
                 }
-
-            BooksView(modelContext: modelContext)
-                .tabItem {
-                    Label("Books", systemImage: "book.closed.fill")
+            IncomingView()
+                .tabItem{
+                    Label("Incoming", systemImage: "bell.fill")
                 }
-
-            ProfileSettingsView()
-                .tabItem {
-                    Label("Profile", systemImage: "person.crop.circle")
+            SendView()
+                .tabItem{
+                    Label("Send", systemImage: "envelope.front.fill")
                 }
+            //BooksView(modelContext: modelContext)
+            //  .tabItem {
+            //    Label("Books", systemImage: "book.closed.fill")
+            //}
         }
     }
 }
 
-struct LettersView: View {
-    var body: some View {
-        NavigationView {
-            Text("Letters will be available here.")
-                .font(.body)
-                .foregroundColor(.secondary)
-                .navigationTitle("Letters")
-        }
-    }
-}
 
 struct BooksView: View {
     let modelContext: ModelContext
@@ -47,15 +44,3 @@ struct BooksView: View {
         BookLibraryView(modelContext: modelContext)
     }
 }
-
-struct ProfileSettingsView: View {
-    var body: some View {
-        NavigationView {
-            Text("Profile and settings will be available here.")
-                .font(.body)
-                .foregroundColor(.secondary)
-                .navigationTitle("Profile")
-        }
-    }
-}
-
