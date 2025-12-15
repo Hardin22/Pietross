@@ -124,7 +124,7 @@ struct BookLibraryView: View {
 /// Card view showing a book's cover in the library grid
 struct BookCoverCard: View {
     let book: LocalBook
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // Cover preview
@@ -132,17 +132,12 @@ struct BookCoverCard: View {
                 .frame(height: 200)
                 .cornerRadius(12)
                 .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
-            
+
             // Book title
             Text(book.title)
                 .font(.subheadline.weight(.medium))
                 .lineLimit(2)
                 .foregroundColor(.primary)
-            
-            // Last modified date
-            Text(book.updatedAt, style: .relative)
-                .font(.caption)
-                .foregroundColor(.secondary)
         }
     }
     
@@ -187,19 +182,29 @@ struct CoverPreviewRenderer: View {
 
     var body: some View {
         GeometryReader { geometry in
+            // Calculate scale to fit virtual canvas into preview area
             let scaleX = geometry.size.width / CanvasConstants.virtualSize.width
             let scaleY = geometry.size.height / CanvasConstants.virtualSize.height
             let scale = min(scaleX, scaleY)
 
-            ZStack {
+            // Center the scaled canvas in the available space
+            let scaledWidth = CanvasConstants.virtualSize.width * scale
+            let scaledHeight = CanvasConstants.virtualSize.height * scale
+            let offsetX = (geometry.size.width - scaledWidth) / 2
+            let offsetY = (geometry.size.height - scaledHeight) / 2
+
+            ZStack(alignment: .topLeading) {
                 Rectangle()
                     .fill(Color.white)
+                    .frame(width: scaledWidth, height: scaledHeight)
 
                 ForEach(elements.sorted(by: { $0.zIndex < $1.zIndex })) { element in
                     elementPreview(element, scale: scale)
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .frame(width: scaledWidth, height: scaledHeight)
+            .offset(x: offsetX, y: offsetY)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
         }
     }
 
@@ -208,7 +213,8 @@ struct CoverPreviewRenderer: View {
         switch element {
         case .text(let textElement):
             Text(textElement.content)
-                .font(.system(size: textElement.fontSize * scale))
+                .font(.system(size: max(8, textElement.fontSize * scale))) // Minimum font size for readability
+                .fontWeight(textElement.isBold ? .bold : .regular)
                 .foregroundColor(Color(hex: textElement.textColor))
                 .frame(width: textElement.size.width * scale, height: textElement.size.height * scale)
                 .rotationEffect(Angle(radians: textElement.rotation))

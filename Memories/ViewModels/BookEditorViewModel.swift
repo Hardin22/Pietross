@@ -48,10 +48,11 @@ final class BookEditorViewModel: ObservableObject {
     }
     
     // MARK: - Initialization
-    
+
     init(book: LocalBook, modelContext: ModelContext) {
         self.book = book
         self.modelContext = modelContext
+        self.isEditingCover = true // Start on cover page
         self.coverElements = book.coverElements
         loadCurrentPageElements()
     }
@@ -83,12 +84,62 @@ final class BookEditorViewModel: ObservableObject {
     }
     
     // MARK: - Page Management
-    
+
     func addNewPage() {
         let newPage = LocalPage(orderIndex: pageCount)
         newPage.book = book
         book.pages.append(newPage)
         save()
+    }
+
+    /// Creates a new page and navigates to it (used for swipe-to-create)
+    func addNewPageAndNavigate() {
+        saveCurrentPageElements()
+        addNewPage()
+        currentPageIndex = pageCount - 1
+        isEditingCover = false
+        loadCurrentPageElements()
+        selectedElementId = nil
+    }
+
+    /// Swipe navigation: go to next page or create new if on last page
+    func swipeToNextPage() {
+        if isEditingCover {
+            // From cover, go to first page (create if none exist)
+            if pageCount == 0 {
+                addNewPage()
+            }
+            saveCurrentPageElements()
+            isEditingCover = false
+            currentPageIndex = 0
+            loadCurrentPageElements()
+            selectedElementId = nil
+        } else if canGoToNextPage {
+            goToNextPage()
+        } else {
+            // On last page, create new page and navigate to it
+            addNewPageAndNavigate()
+        }
+    }
+
+    /// Swipe navigation: go to previous page or cover
+    func swipeToPreviousPage() {
+        if isEditingCover {
+            // Already on cover, can't go further back
+            return
+        } else if currentPageIndex == 0 {
+            // On first page, go to cover
+            saveCurrentPageElements()
+            isEditingCover = true
+            selectedElementId = nil
+        } else {
+            goToPreviousPage()
+        }
+    }
+
+    /// Check if can swipe to previous (cover or previous page)
+    var canSwipeToPrevious: Bool {
+        !isEditingCover // Can always swipe back unless on cover
     }
     
     func deletePage(at index: Int) {

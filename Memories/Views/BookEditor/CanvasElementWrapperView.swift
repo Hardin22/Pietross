@@ -18,12 +18,13 @@ struct CanvasElementWrapperView: View {
     
     var body: some View {
         elementContent
-            .frame(width: element.size.width, height: element.size.height)
+            .frame(width: element.size.width * scale, height: element.size.height * scale)
+            .contentShape(Rectangle()) // Makes entire element area tappable/draggable
             .rotationEffect(Angle(radians: element.rotation) + currentRotation)
             .scaleEffect(currentScale)
             .position(
-                x: element.position.x + dragOffset.width / scale,
-                y: element.position.y + dragOffset.height / scale
+                x: element.position.x * scale + dragOffset.width,
+                y: element.position.y * scale + dragOffset.height
             )
             .overlay(selectionOverlay)
             .gesture(combinedGesture)
@@ -46,8 +47,8 @@ struct CanvasElementWrapperView: View {
     private var selectionOverlay: some View {
         if isSelected {
             Rectangle()
-                .strokeBorder(Color.blue, lineWidth: 2 / scale)
-                .frame(width: element.size.width * currentScale, height: element.size.height * currentScale)
+                .strokeBorder(Color.blue, lineWidth: 2)
+                .frame(width: element.size.width * scale * currentScale, height: element.size.height * scale * currentScale)
                 .overlay(alignment: .topLeading) {
                     deleteButton
                 }
@@ -93,6 +94,7 @@ struct CanvasElementWrapperView: View {
             }
             .onEnded { value in
                 var updated = element
+                // Convert screen coordinates to virtual coordinates
                 updated.position = CGPoint(
                     x: element.position.x + value.translation.width / scale,
                     y: element.position.y + value.translation.height / scale

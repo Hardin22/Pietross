@@ -78,52 +78,58 @@ struct BookEditorScreen: View {
     }
 }
 
-/// Header showing page navigation controls
+/// Header showing page indicator with swipe hint
 struct PageNavigationHeader: View {
     @ObservedObject var viewModel: BookEditorViewModel
     let onShowPageList: () -> Void
-    
+
     var body: some View {
         HStack {
-            // Previous page button
-            Button(action: viewModel.goToPreviousPage) {
-                Image(systemName: "chevron.left")
-                    .font(.title2)
-                    .foregroundColor(viewModel.canGoToPreviousPage ? .primary : .gray)
-            }
-            .disabled(!viewModel.canGoToPreviousPage)
-            
+            // Swipe hint left
+            Image(systemName: "chevron.left")
+                .font(.caption)
+                .foregroundColor(viewModel.canSwipeToPrevious ? .secondary : .clear)
+
             Spacer()
-            
-            // Current page indicator
+
+            // Current page indicator (tappable to show page list)
             Button(action: onShowPageList) {
-                VStack(spacing: 2) {
+                HStack(spacing: 6) {
                     if viewModel.isEditingCover {
+                        Image(systemName: "book.closed.fill")
+                            .font(.caption)
                         Text("Cover")
                             .font(.subheadline.weight(.medium))
                     } else {
-                        Text("Page \(viewModel.currentPageIndex + 1) of \(viewModel.pageCount)")
+                        Image(systemName: "doc.fill")
+                            .font(.caption)
+                        Text("Page \(viewModel.currentPageIndex + 1)")
                             .font(.subheadline.weight(.medium))
+                        Text("of \(max(1, viewModel.pageCount))")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
-                    
+
                     Image(systemName: "chevron.down")
                         .font(.caption2)
+                        .foregroundColor(.secondary)
                 }
                 .foregroundColor(.primary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Color(.systemGray6))
+                .cornerRadius(16)
             }
-            
+
             Spacer()
-            
-            // Next page button
-            Button(action: viewModel.goToNextPage) {
-                Image(systemName: "chevron.right")
-                    .font(.title2)
-                    .foregroundColor(viewModel.canGoToNextPage ? .primary : .gray)
-            }
-            .disabled(!viewModel.canGoToNextPage)
+
+            // Swipe hint right (always visible - can always swipe to next/new page)
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundColor(.secondary)
         }
         .padding(.horizontal)
-        .padding(.vertical, 12)
+        .padding(.vertical, 8)
         .background(Color(.systemBackground))
     }
 }

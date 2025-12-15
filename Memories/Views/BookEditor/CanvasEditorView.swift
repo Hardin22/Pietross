@@ -7,17 +7,23 @@ struct CanvasEditorView: View {
     @State private var showingImagePicker = false
     @State private var showingTextToolbar = false
     @State private var selectedPhotoItem: PhotosPickerItem?
-    
+
+    // Swipe gesture state
+    @State private var swipeOffset: CGFloat = 0
+    @State private var isSwipeActive = false
+
+    private let swipeThreshold: CGFloat = 100
+
     var body: some View {
         GeometryReader { geometry in
             let scale = calculateScale(for: geometry.size)
-            
+
             ZStack {
                 // Background
                 Color(.systemGray6)
                     .ignoresSafeArea()
-                
-                // Canvas container with scaling
+
+                // Canvas container with scaling and swipe offset
                 CanvasContainerView(
                     viewModel: viewModel,
                     scale: scale
@@ -27,11 +33,12 @@ struct CanvasEditorView: View {
                     height: CanvasConstants.virtualSize.height * scale
                 )
                 .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 5)
-                
+                .offset(x: swipeOffset)
+
                 // Floating toolbar overlay
                 VStack {
                     Spacer()
-                    
+
                     if let selectedId = viewModel.selectedElementId,
                        case .text(let textElement) = viewModel.currentElements.first(where: { $0.id == selectedId }) {
                         TextEditingToolbar(
@@ -42,7 +49,7 @@ struct CanvasEditorView: View {
                         )
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
-                    
+
                     EditorBottomToolbar(
                         onAddText: {
                             let center = CGPoint(
@@ -57,6 +64,7 @@ struct CanvasEditorView: View {
                     )
                 }
             }
+            .gesture(pageSwipeGesture(in: geometry))
         }
         .photosPicker(
             isPresented: $showingImagePicker,
@@ -69,6 +77,49 @@ struct CanvasEditorView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: viewModel.selectedElementId)
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: swipeOffset)
+    }
+
+    /// Horizontal swipe gesture for page navigation
+    private func pageSwipeGesture(in geometry: GeometryProxy) -> some Gesture {
+        DragGesture(minimumDistance: 30, coordinateSpace: .local)
+            .onChanged { value in
+                // Only respond to horizontal swipes (not element drags)
+                let horizontalAmount = abs(value.translation.width)
+                let verticalAmount = abs(value.translation.height)
+
+                // Must be primarily horizontal and no element selected
+                if horizontalAmount > verticalAmount && viewModel.selectedElementId == nil {
+                    isSwipeActive = true
+
+                    // Limit swipe offset with resistance at edges
+                    let translation = value.translation.width
+
+                    // Prevent swiping right on cover (no previous page)
+                    if translation > 0 && !viewModel.canSwipeToPrevious {
+                        swipeOffset = translation * 0.3 // Resistance effect
+                    } else {
+                        swipeOffset = translation
+                    }
+                }
+            }
+            .onEnded { value in
+                guard isSwipeActive else { return }
+                isSwipeActive = false
+
+                let translation = value.translation.width
+
+                if translation < -swipeThreshold {
+                    // Swiped left (right-to-left) → next page
+                    viewModel.swipeToNextPage()
+                } else if translation > swipeThreshold && viewModel.canSwipeToPrevious {
+                    // Swiped right (left-to-right) → previous page
+                    viewModel.swipeToPreviousPage()
+                }
+
+                // Reset offset with animation
+                swipeOffset = 0
+            }
     }
     
     private func calculateScale(for size: CGSize) -> CGFloat {
