@@ -105,7 +105,7 @@ struct TextElement: CanvasElement, Codable, Identifiable {
     var size: CGSize
     var rotation: Double
     var zIndex: Int
-    
+
     // Text-specific properties
     var content: String
     var fontFamily: String
@@ -116,7 +116,8 @@ struct TextElement: CanvasElement, Codable, Identifiable {
     var isItalic: Bool
     var isUnderlined: Bool
     var textAlignment: TextAlignmentType
-    
+    var lineHeight: CGFloat // Line height multiplier (1.0 = normal)
+
     init(
         id: UUID = UUID(),
         position: CGPoint = .zero,
@@ -137,6 +138,33 @@ struct TextElement: CanvasElement, Codable, Identifiable {
         self.isItalic = false
         self.isUnderlined = false
         self.textAlignment = .left
+        self.lineHeight = 1.2 // Default line height
+    }
+
+    // Custom decoder for backward compatibility with existing data
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        position = try container.decode(CGPoint.self, forKey: .position)
+        size = try container.decode(CGSize.self, forKey: .size)
+        rotation = try container.decode(Double.self, forKey: .rotation)
+        zIndex = try container.decode(Int.self, forKey: .zIndex)
+        content = try container.decode(String.self, forKey: .content)
+        fontFamily = try container.decode(String.self, forKey: .fontFamily)
+        fontSize = try container.decode(CGFloat.self, forKey: .fontSize)
+        fontWeight = try container.decode(FontWeightType.self, forKey: .fontWeight)
+        textColor = try container.decode(String.self, forKey: .textColor)
+        isBold = try container.decode(Bool.self, forKey: .isBold)
+        isItalic = try container.decode(Bool.self, forKey: .isItalic)
+        isUnderlined = try container.decode(Bool.self, forKey: .isUnderlined)
+        textAlignment = try container.decode(TextAlignmentType.self, forKey: .textAlignment)
+        // Use default value if lineHeight is missing (backward compatibility)
+        lineHeight = try container.decodeIfPresent(CGFloat.self, forKey: .lineHeight) ?? 1.2
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, position, size, rotation, zIndex, content, fontFamily, fontSize
+        case fontWeight, textColor, isBold, isItalic, isUnderlined, textAlignment, lineHeight
     }
 }
 
@@ -215,13 +243,14 @@ enum FontWeightType: String, Codable, CaseIterable {
 }
 
 enum TextAlignmentType: String, Codable, CaseIterable {
-    case left, center, right
+    case left, center, right, justify
 
     var alignment: TextAlignment {
         switch self {
         case .left: return .leading
         case .center: return .center
         case .right: return .trailing
+        case .justify: return .leading // SwiftUI doesn't have native justify, handled separately
         }
     }
 }
