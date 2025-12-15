@@ -117,7 +117,12 @@ struct CanvasEditorView: View {
                             },
                             onAddImage: {
                                 showingImagePicker = true
-                            }
+                            },
+                            currentBackgroundImageName: viewModel.currentPageBackgroundImageName,
+                            onSelectBackground: { imageName in
+                                viewModel.setCurrentPageBackground(imageName)
+                            },
+                            isEditingCover: viewModel.isEditingCover
                         )
                     }
                 }
@@ -278,8 +283,15 @@ struct CanvasContainerView: View {
     var body: some View {
         ZStack {
             // Page background
-            Rectangle()
-                .fill(Color.white)
+            if let backgroundImageName = viewModel.currentPageBackgroundImageName,
+               !viewModel.isEditingCover {
+                Image(backgroundImageName)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } else {
+                Rectangle()
+                    .fill(Color.white)
+            }
 
             // Canvas elements
             ForEach(viewModel.currentElements.sorted(by: { $0.zIndex < $1.zIndex })) { element in

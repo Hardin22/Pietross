@@ -87,7 +87,8 @@ final class BookEditorViewModel: ObservableObject {
     // MARK: - Page Management
 
     func addNewPage() {
-        let newPage = LocalPage(orderIndex: pageCount)
+        // Create new page with the book's default background preference
+        let newPage = LocalPage(orderIndex: pageCount, backgroundImageName: book.defaultBackgroundImageName)
         newPage.book = book
         book.pages.append(newPage)
         save()
@@ -348,6 +349,30 @@ final class BookEditorViewModel: ObservableObject {
     func updateBookTitle(_ title: String) {
         book.title = title
         save()
+    }
+
+    // MARK: - Background Management
+
+    /// Get the current page's background image name
+    var currentPageBackgroundImageName: String? {
+        if isEditingCover {
+            return nil // Cover doesn't use page backgrounds
+        }
+        return currentPage?.backgroundImageName
+    }
+
+    /// Set the background image for the current page and update the book's default preference
+    func setCurrentPageBackground(_ imageName: String?) {
+        guard !isEditingCover, let page = currentPage else { return }
+        page.backgroundImageName = imageName
+        // Also update the book's default so new pages use this background
+        book.defaultBackgroundImageName = imageName
+        save()
+    }
+
+    /// Get the book's default background preference
+    var defaultBackgroundImageName: String? {
+        book.defaultBackgroundImageName
     }
 
     // MARK: - Persistence Helpers

@@ -197,11 +197,39 @@ struct RoundedCorner: Shape {
 
 // MARK: - Bottom Toolbar
 
+/// Available book page background options
+enum BookPageBackground: String, CaseIterable, Identifiable {
+    case none = ""
+    case background1 = "bookPageBackground1"
+    case background2 = "bookPageBackground2"
+    case background3 = "bookPageBackground3"
+    case background4 = "bookPageBackground4"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .none: return "White"
+        case .background1: return "Page 1"
+        case .background2: return "Page 2"
+        case .background3: return "Page 3"
+        case .background4: return "Page 4"
+        }
+    }
+
+    var imageName: String? {
+        rawValue.isEmpty ? nil : rawValue
+    }
+}
+
 /// Bottom toolbar with add drawing/text/image buttons (Freeform-style)
 struct EditorBottomToolbar: View {
     let onAddDrawing: () -> Void
     let onAddText: () -> Void
     let onAddImage: () -> Void
+    let currentBackgroundImageName: String?
+    let onSelectBackground: (String?) -> Void
+    let isEditingCover: Bool
 
     var body: some View {
         HStack(spacing: 24) {
@@ -236,6 +264,32 @@ struct EditorBottomToolbar: View {
                         .font(.caption2)
                 }
                 .foregroundColor(.primary)
+            }
+
+            // Background button (only shown when not editing cover)
+            if !isEditingCover {
+                Menu {
+                    ForEach(BookPageBackground.allCases) { background in
+                        Button(action: {
+                            onSelectBackground(background.imageName)
+                        }) {
+                            HStack {
+                                Text(background.displayName)
+                                if currentBackgroundImageName == background.imageName {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    VStack(spacing: 4) {
+                        Image(systemName: "doc.richtext")
+                            .font(.system(size: 22))
+                        Text("Background")
+                            .font(.caption2)
+                    }
+                    .foregroundColor(.primary)
+                }
             }
         }
         .padding()
