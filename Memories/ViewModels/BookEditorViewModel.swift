@@ -186,14 +186,48 @@ final class BookEditorViewModel: ObservableObject {
             originalSize: originalSize
         )
         element.zIndex = currentElements.count
-        
+
         if isEditingCover {
             coverElements.append(.image(element))
         } else {
             pageElements.append(.image(element))
         }
-        
+
         selectedElementId = element.id
+        saveCurrentPageElements()
+    }
+
+    func addDrawingElement(at position: CGPoint, size: CGSize = CGSize(width: 400, height: 300)) {
+        var element = DrawingElement(
+            position: position,
+            size: size
+        )
+        element.zIndex = currentElements.count
+
+        if isEditingCover {
+            coverElements.append(.drawing(element))
+        } else {
+            pageElements.append(.drawing(element))
+        }
+
+        selectedElementId = element.id
+        saveCurrentPageElements()
+    }
+
+    func updateDrawingData(_ id: UUID, drawingData: Data) {
+        if isEditingCover {
+            if let index = coverElements.firstIndex(where: { $0.id == id }),
+               case .drawing(var drawingElement) = coverElements[index] {
+                drawingElement.drawingData = drawingData
+                coverElements[index] = .drawing(drawingElement)
+            }
+        } else {
+            if let index = pageElements.firstIndex(where: { $0.id == id }),
+               case .drawing(var drawingElement) = pageElements[index] {
+                drawingElement.drawingData = drawingData
+                pageElements[index] = .drawing(drawingElement)
+            }
+        }
         saveCurrentPageElements()
     }
     

@@ -161,6 +161,32 @@ struct ImageElement: CanvasElement, Codable, Identifiable {
     }
 }
 
+/// Represents a drawing on the canvas (stored as PencilKit data)
+struct DrawingElement: CanvasElement, Codable, Identifiable {
+    let id: UUID
+    var position: CGPoint
+    var size: CGSize
+    var rotation: Double
+    var zIndex: Int
+
+    // Drawing-specific properties
+    var drawingData: Data // PKDrawing serialized data
+
+    init(
+        id: UUID = UUID(),
+        position: CGPoint = .zero,
+        size: CGSize = CGSize(width: 400, height: 300),
+        drawingData: Data = Data()
+    ) {
+        self.id = id
+        self.position = position
+        self.size = size
+        self.drawingData = drawingData
+        self.rotation = 0
+        self.zIndex = 0
+    }
+}
+
 // MARK: - Supporting Types
 
 enum FontWeightType: String, Codable, CaseIterable {
@@ -197,11 +223,13 @@ enum TextAlignmentType: String, Codable, CaseIterable {
 enum PageElement: Codable, Identifiable {
     case text(TextElement)
     case image(ImageElement)
+    case drawing(DrawingElement)
 
     var id: UUID {
         switch self {
         case .text(let element): return element.id
         case .image(let element): return element.id
+        case .drawing(let element): return element.id
         }
     }
 
@@ -210,6 +238,7 @@ enum PageElement: Codable, Identifiable {
             switch self {
             case .text(let e): return e.position
             case .image(let e): return e.position
+            case .drawing(let e): return e.position
             }
         }
         set {
@@ -220,6 +249,9 @@ enum PageElement: Codable, Identifiable {
             case .image(var e):
                 e.position = newValue
                 self = .image(e)
+            case .drawing(var e):
+                e.position = newValue
+                self = .drawing(e)
             }
         }
     }
@@ -229,6 +261,7 @@ enum PageElement: Codable, Identifiable {
             switch self {
             case .text(let e): return e.size
             case .image(let e): return e.size
+            case .drawing(let e): return e.size
             }
         }
         set {
@@ -239,6 +272,9 @@ enum PageElement: Codable, Identifiable {
             case .image(var e):
                 e.size = newValue
                 self = .image(e)
+            case .drawing(var e):
+                e.size = newValue
+                self = .drawing(e)
             }
         }
     }
@@ -248,6 +284,7 @@ enum PageElement: Codable, Identifiable {
             switch self {
             case .text(let e): return e.rotation
             case .image(let e): return e.rotation
+            case .drawing(let e): return e.rotation
             }
         }
         set {
@@ -258,6 +295,9 @@ enum PageElement: Codable, Identifiable {
             case .image(var e):
                 e.rotation = newValue
                 self = .image(e)
+            case .drawing(var e):
+                e.rotation = newValue
+                self = .drawing(e)
             }
         }
     }
@@ -267,6 +307,7 @@ enum PageElement: Codable, Identifiable {
             switch self {
             case .text(let e): return e.zIndex
             case .image(let e): return e.zIndex
+            case .drawing(let e): return e.zIndex
             }
         }
         set {
@@ -277,6 +318,9 @@ enum PageElement: Codable, Identifiable {
             case .image(var e):
                 e.zIndex = newValue
                 self = .image(e)
+            case .drawing(var e):
+                e.zIndex = newValue
+                self = .drawing(e)
             }
         }
     }

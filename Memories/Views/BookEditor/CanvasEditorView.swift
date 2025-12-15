@@ -1,5 +1,6 @@
 import SwiftUI
 import PhotosUI
+import PencilKit
 
 /// Main canvas editor view for editing book pages
 struct CanvasEditorView: View {
@@ -16,6 +17,10 @@ struct CanvasEditorView: View {
     @State private var isAnimatingPageTurn = false
     @State private var pageTurnProgress: Double = 0
     @State private var pageTurnDirection: PageTurnDirection = .forward
+
+    // Drawing mode state
+    @State private var isDrawingMode = false
+    @State private var currentDrawing = PKDrawing()
 
     private let swipeThreshold: CGFloat = 100
 
@@ -52,29 +57,66 @@ struct CanvasEditorView: View {
                 VStack {
                     Spacer()
 
-                    if let selectedId = viewModel.selectedElementId,
-                       case .text(let textElement) = viewModel.currentElements.first(where: { $0.id == selectedId }) {
-                        TextEditingToolbar(
-                            textElement: textElement,
-                            onUpdate: { updated in
-                                viewModel.updateElement(.text(updated))
+                    // Drawing mode toolbar
+                    if isDrawingMode {
+                        DrawingModeToolbar(
+                            onDone: {
+                                // Save the drawing as an element
+                                if !currentDrawing.bounds.isEmpty {
+                                    let drawingData = currentDrawing.dataRepresentation()
+                                    let center = CGPoint(
+                                        x: CanvasConstants.virtualSize.width / 2,
+                                        y: CanvasConstants.virtualSize.height / 2
+                                    )
+                                    let bounds = currentDrawing.bounds
+                                    viewModel.addDrawingElement(
+                                        at: center,
+                                        size: CGSize(width: bounds.width, height: bounds.height)
+                                    )
+                                    // Update the drawing data
+                                    if let lastElement = viewModel.currentElements.last,
+                                       case .drawing = lastElement {
+                                        viewModel.updateDrawingData(lastElement.id, drawingData: drawingData)
+                                    }
+                                }
+                                currentDrawing = PKDrawing()
+                                isDrawingMode = false
+                            },
+                            onCancel: {
+                                currentDrawing = PKDrawing()
+                                isDrawingMode = false
                             }
                         )
                         .transition(.move(edge: .bottom).combined(with: .opacity))
-                    }
-
-                    EditorBottomToolbar(
-                        onAddText: {
-                            let center = CGPoint(
-                                x: CanvasConstants.virtualSize.width / 2,
-                                y: CanvasConstants.virtualSize.height / 2
+                    } else {
+                        if let selectedId = viewModel.selectedElementId,
+                           case .text(let textElement) = viewModel.currentElements.first(where: { $0.id == selectedId }) {
+                            TextEditingToolbar(
+                                textElement: textElement,
+                                onUpdate: { updated in
+                                    viewModel.updateElement(.text(updated))
+                                }
                             )
-                            viewModel.addTextElement(at: center)
-                        },
-                        onAddImage: {
-                            showingImagePicker = true
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
                         }
-                    )
+
+                        EditorBottomToolbar(
+                            onAddDrawing: {
+                                isDrawingMode = true
+                                viewModel.deselectAll()
+                            },
+                            onAddText: {
+                                let center = CGPoint(
+                                    x: CanvasConstants.virtualSize.width / 2,
+                                    y: CanvasConstants.virtualSize.height / 2
+                                )
+                                viewModel.addTextElement(at: center)
+                            },
+                            onAddImage: {
+                                showingImagePicker = true
+                            }
+                        )
+                    }
                 }
             }
             .gesture(pageSwipeGesture(in: geometry, canvasWidth: canvasWidth))
@@ -100,7 +142,9 @@ struct CanvasEditorView: View {
             // Main canvas with 3D page turn effect
             CanvasContainerView(
                 viewModel: viewModel,
-                scale: scale
+                scale: scale,
+                isDrawingMode: isDrawingMode,
+                drawing: $currentDrawing
             )
             .frame(width: canvasWidth, height: canvasHeight)
             .background(Color.white)
@@ -225,13 +269,15 @@ struct CanvasEditorView: View {
 struct CanvasContainerView: View {
     @ObservedObject var viewModel: BookEditorViewModel
     let scale: CGFloat
-    
+    let isDrawingMode: Bool
+    @Binding var drawing: PKDrawing
+
     var body: some View {
         ZStack {
             // Page background
             Rectangle()
                 .fill(Color.white)
-            
+
             // Canvas elements
             ForEach(viewModel.currentElements.sorted(by: { $0.zIndex < $1.zIndex })) { element in
                 CanvasElementWrapperView(
@@ -249,10 +295,18 @@ struct CanvasContainerView: View {
                     }
                 )
             }
+
+            // Drawing overlay (when in drawing mode)
+            if isDrawingMode {
+                DrawingCanvasView(drawing: $drawing)
+                    .allowsHitTesting(true)
+            }
         }
         .contentShape(Rectangle())
         .onTapGesture {
-            viewModel.deselectAll()
+            if !isDrawingMode {
+                viewModel.deselectAll()
+            }
         }
     }
 }
@@ -421,6 +475,92 @@ struct NewPageIndicator: View {
         ) {
             isPulsing = true
         }
+    }
+}
+
+// MARK: - Drawing Canvas View (PencilKit)
+
+/// UIViewRepresentable wrapper for PKCanvasView
+struct DrawingCanvasView: UIViewRepresentable {
+    @Binding var drawing: PKDrawing
+
+    func makeUIView(context: Context) -> PKCanvasView {
+        let canvasView = PKCanvasView()
+        canvasView.backgroundColor = .clear
+        canvasView.isOpaque = false
+        canvasView.drawing = drawing
+        canvasView.delegate = context.coordinator
+        canvasView.drawingPolicy = .anyInput // Allows finger and Apple Pencil
+
+        // Set up the tool picker
+        let toolPicker = PKToolPicker()
+        toolPicker.setVisible(true, forFirstResponder: canvasView)
+        toolPicker.addObserver(canvasView)
+        canvasView.becomeFirstResponder()
+
+        // Store tool picker in coordinator to keep it alive
+        context.coordinator.toolPicker = toolPicker
+
+        return canvasView
+    }
+
+    func updateUIView(_ uiView: PKCanvasView, context: Context) {
+        // Only update if the drawing is different (to avoid loops)
+        if uiView.drawing != drawing {
+            uiView.drawing = drawing
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    class Coordinator: NSObject, PKCanvasViewDelegate {
+        var parent: DrawingCanvasView
+        var toolPicker: PKToolPicker?
+
+        init(_ parent: DrawingCanvasView) {
+            self.parent = parent
+        }
+
+        func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
+            parent.drawing = canvasView.drawing
+        }
+    }
+}
+
+// MARK: - Drawing Mode Toolbar
+
+/// Toolbar shown when in drawing mode
+struct DrawingModeToolbar: View {
+    let onDone: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        HStack {
+            Button(action: onCancel) {
+                Text("Cancel")
+                    .foregroundColor(.red)
+            }
+            .padding(.horizontal)
+
+            Spacer()
+
+            Text("Drawing")
+                .font(.headline)
+
+            Spacer()
+
+            Button(action: onDone) {
+                Text("Done")
+                    .fontWeight(.semibold)
+            }
+            .padding(.horizontal)
+        }
+        .padding(.vertical, 12)
+        .background(Color(.systemBackground))
+        .cornerRadius(12, corners: [.topLeft, .topRight])
+        .shadow(color: .black.opacity(0.1), radius: 5, y: -2)
     }
 }
 

@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import PencilKit
 
 /// Main library view showing all user's books
 struct BookLibraryView: View {
@@ -236,6 +237,15 @@ struct CoverPreviewRenderer: View {
                         y: imageElement.position.y * scale
                     )
             }
+
+        case .drawing(let drawingElement):
+            DrawingElementView(element: drawingElement)
+                .frame(width: drawingElement.size.width * scale, height: drawingElement.size.height * scale)
+                .rotationEffect(Angle(radians: drawingElement.rotation))
+                .position(
+                    x: drawingElement.position.x * scale,
+                    y: drawingElement.position.y * scale
+                )
         }
     }
 }

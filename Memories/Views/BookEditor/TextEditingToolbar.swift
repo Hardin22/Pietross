@@ -197,13 +197,26 @@ struct RoundedCorner: Shape {
 
 // MARK: - Bottom Toolbar
 
-/// Bottom toolbar with add text/image buttons
+/// Bottom toolbar with add drawing/text/image buttons (Freeform-style)
 struct EditorBottomToolbar: View {
+    let onAddDrawing: () -> Void
     let onAddText: () -> Void
     let onAddImage: () -> Void
 
     var body: some View {
         HStack(spacing: 24) {
+            // Drawing button (Apple Pencil support)
+            Button(action: onAddDrawing) {
+                VStack(spacing: 4) {
+                    Image(systemName: "pencil.tip.crop.circle")
+                        .font(.system(size: 22))
+                    Text("Draw")
+                        .font(.caption2)
+                }
+                .foregroundColor(.primary)
+            }
+
+            // Text button
             Button(action: onAddText) {
                 VStack(spacing: 4) {
                     Image(systemName: "textformat")
@@ -214,6 +227,7 @@ struct EditorBottomToolbar: View {
                 .foregroundColor(.primary)
             }
 
+            // Image button
             Button(action: onAddImage) {
                 VStack(spacing: 4) {
                     Image(systemName: "photo")
