@@ -55,9 +55,7 @@ struct CanvasEditorView: View {
 
                 // Floating toolbar overlay
                 VStack {
-                    Spacer()
-
-                    // Drawing mode toolbar
+                    // Drawing mode toolbar at TOP (above PKToolPicker which appears at bottom)
                     if isDrawingMode {
                         DrawingModeToolbar(
                             onDone: {
@@ -87,8 +85,13 @@ struct CanvasEditorView: View {
                                 isDrawingMode = false
                             }
                         )
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                    } else {
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .zIndex(100) // Ensure toolbar is above drawing canvas
+                    }
+
+                    Spacer()
+
+                    if !isDrawingMode {
                         if let selectedId = viewModel.selectedElementId,
                            case .text(let textElement) = viewModel.currentElements.first(where: { $0.id == selectedId }) {
                             TextEditingToolbar(
@@ -283,6 +286,7 @@ struct CanvasContainerView: View {
                 CanvasElementWrapperView(
                     element: element,
                     isSelected: viewModel.selectedElementId == element.id,
+                    isEditing: viewModel.editingTextElementId == element.id,
                     scale: scale,
                     onSelect: {
                         viewModel.selectElement(id: element.id)
@@ -292,6 +296,12 @@ struct CanvasContainerView: View {
                     },
                     onDelete: {
                         viewModel.deleteElement(id: element.id)
+                    },
+                    onStartEditing: {
+                        viewModel.editingTextElementId = element.id
+                    },
+                    onStopEditing: {
+                        viewModel.stopEditingText()
                     }
                 )
             }
@@ -305,6 +315,7 @@ struct CanvasContainerView: View {
         .contentShape(Rectangle())
         .onTapGesture {
             if !isDrawingMode {
+                viewModel.stopEditingText()
                 viewModel.deselectAll()
             }
         }
@@ -531,7 +542,7 @@ struct DrawingCanvasView: UIViewRepresentable {
 
 // MARK: - Drawing Mode Toolbar
 
-/// Toolbar shown when in drawing mode
+/// Toolbar shown when in drawing mode (positioned at top of screen)
 struct DrawingModeToolbar: View {
     let onDone: () -> Void
     let onCancel: () -> Void
@@ -541,8 +552,9 @@ struct DrawingModeToolbar: View {
             Button(action: onCancel) {
                 Text("Cancel")
                     .foregroundColor(.red)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
             }
-            .padding(.horizontal)
 
             Spacer()
 
@@ -554,13 +566,20 @@ struct DrawingModeToolbar: View {
             Button(action: onDone) {
                 Text("Done")
                     .fontWeight(.semibold)
+                    .foregroundColor(.blue)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
             }
-            .padding(.horizontal)
         }
-        .padding(.vertical, 12)
-        .background(Color(.systemBackground))
-        .cornerRadius(12, corners: [.topLeft, .topRight])
-        .shadow(color: .black.opacity(0.1), radius: 5, y: -2)
+        .padding(.vertical, 8)
+        .padding(.horizontal, 8)
+        .background(
+            Color(.systemBackground)
+                .opacity(0.95)
+        )
+        .cornerRadius(12, corners: [.bottomLeft, .bottomRight])
+        .shadow(color: .black.opacity(0.15), radius: 8, y: 2)
+        .padding(.horizontal, 16)
     }
 }
 
