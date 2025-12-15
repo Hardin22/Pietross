@@ -11,25 +11,28 @@ final class LocalBook {
     var title: String
     var createdAt: Date
     var updatedAt: Date
-    
+
     /// Cover page data stored as JSON
     var coverData: Data?
-    
+
+    /// Default background image name for new pages (user preference)
+    var defaultBackgroundImageName: String?
+
     /// Ordered pages in the book
     @Relationship(deleteRule: .cascade, inverse: \LocalPage.book)
     var pages: [LocalPage] = []
-    
+
     init(id: UUID = UUID(), title: String = "Untitled Book") {
         self.id = id
         self.title = title
         self.createdAt = Date()
         self.updatedAt = Date()
     }
-    
+
     var sortedPages: [LocalPage] {
         pages.sorted { $0.orderIndex < $1.orderIndex }
     }
-    
+
     var coverElements: [PageElement] {
         get {
             guard let data = coverData else { return [] }
@@ -49,23 +52,27 @@ final class LocalPage {
     var orderIndex: Int
     var createdAt: Date
     var updatedAt: Date
-    
+
     /// Page elements stored as JSON
     var elementsData: Data?
-    
+
     /// Background color stored as hex string
     var backgroundColorHex: String?
-    
+
     /// Background image data (if using custom image)
     var backgroundImageData: Data?
-    
+
+    /// Background image name from asset catalog (e.g., "bookPageBackground1")
+    var backgroundImageName: String?
+
     var book: LocalBook?
-    
-    init(id: UUID = UUID(), orderIndex: Int = 0) {
+
+    init(id: UUID = UUID(), orderIndex: Int = 0, backgroundImageName: String? = nil) {
         self.id = id
         self.orderIndex = orderIndex
         self.createdAt = Date()
         self.updatedAt = Date()
+        self.backgroundImageName = backgroundImageName
     }
     
     var elements: [PageElement] {
