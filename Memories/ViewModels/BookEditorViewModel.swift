@@ -8,10 +8,11 @@ import Combine
 final class BookEditorViewModel: ObservableObject {
     
     // MARK: - Published Properties
-    
+
     @Published var book: LocalBook
     @Published var currentPageIndex: Int = 0
     @Published var selectedElementId: UUID?
+    @Published var editingTextElementId: UUID? // Track which text element is being edited
     @Published var isEditingCover: Bool = false
     
     // Cover elements (when editing cover)
@@ -168,15 +169,21 @@ final class BookEditorViewModel: ObservableObject {
     func addTextElement(at position: CGPoint) {
         var element = TextElement(position: position)
         element.zIndex = currentElements.count
-        
+
         if isEditingCover {
             coverElements.append(.text(element))
         } else {
             pageElements.append(.text(element))
         }
-        
+
         selectedElementId = element.id
+        editingTextElementId = element.id // Automatically enter edit mode for new text
         saveCurrentPageElements()
+    }
+
+    /// Stop editing text (called when user finishes editing)
+    func stopEditingText() {
+        editingTextElementId = nil
     }
     
     func addImageElement(imageData: Data, originalSize: CGSize, at position: CGPoint) {

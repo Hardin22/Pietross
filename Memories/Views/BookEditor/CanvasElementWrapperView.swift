@@ -10,10 +10,13 @@ enum ResizeCorner {
 struct CanvasElementWrapperView: View {
     let element: PageElement
     let isSelected: Bool
+    let isEditing: Bool // Whether this text element is in edit mode
     let scale: CGFloat
     let onSelect: () -> Void
     let onUpdate: (PageElement) -> Void
     let onDelete: () -> Void
+    let onStartEditing: () -> Void
+    let onStopEditing: () -> Void
 
     // Gesture state for element dragging
     @State private var dragOffset: CGSize = .zero
@@ -25,6 +28,9 @@ struct CanvasElementWrapperView: View {
     @State private var resizeStartSize: CGSize = .zero
     @State private var resizeStartPosition: CGPoint = .zero
 
+    // Focus state for text editing
+    @FocusState private var isTextFieldFocused: Bool
+
     private let handleSize: CGFloat = 24
     private let handleVisualSize: CGFloat = 12
 
@@ -33,14 +39,26 @@ struct CanvasElementWrapperView: View {
             .frame(width: element.size.width * scale, height: element.size.height * scale)
             .contentShape(Rectangle())
             .rotationEffect(Angle(radians: element.rotation) + currentRotation)
+            .overlay(selectionOverlay)
             .position(
                 x: element.position.x * scale + dragOffset.width,
                 y: element.position.y * scale + dragOffset.height
             )
-            .overlay(selectionOverlay)
-            .gesture(isResizing ? nil : combinedGesture)
+            .gesture(isResizing || isEditing ? nil : combinedGesture)
             .onTapGesture {
-                onSelect()
+                if case .text = element, isSelected {
+                    onStartEditing()
+                } else {
+                    onSelect()
+                }
+            }
+            .onChange(of: isEditing) { _, newValue in
+                if newValue {
+                    // Auto-focus the text field when entering edit mode
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        isTextFieldFocused = true
+                    }
+                }
             }
     }
 
@@ -48,7 +66,22 @@ struct CanvasElementWrapperView: View {
     private var elementContent: some View {
         switch element {
         case .text(let textElement):
-            TextElementView(element: textElement)
+            if isEditing {
+                EditableTextElementView(
+                    element: textElement,
+                    isFocused: $isTextFieldFocused,
+                    onUpdate: { updatedText in
+                        var updated = textElement
+                        updated.content = updatedText
+                        onUpdate(.text(updated))
+                    },
+                    onCommit: {
+                        onStopEditing()
+                    }
+                )
+            } else {
+                TextElementView(element: textElement)
+            }
         case .image(let imageElement):
             ImageElementView(element: imageElement)
         case .drawing(let drawingElement):
@@ -252,14 +285,70 @@ struct TextElementView: View {
     let element: TextElement
 
     var body: some View {
-        Text(element.content)
+        Text(element.content.isEmpty ? "Tap to edit" : element.content)
             .font(computedFont)
-            .foregroundColor(Color(hex: element.textColor))
+            .foregroundColor(element.content.isEmpty ? Color.gray.opacity(0.5) : Color(hex: element.textColor))
             .underline(element.isUnderlined)
             .multilineTextAlignment(element.textAlignment.alignment)
             .lineLimit(nil) // Allow unlimited lines for text wrapping
             .fixedSize(horizontal: false, vertical: false) // Allow text to wrap and expand
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignmentFromTextAlignment)
+    }
+
+    private var computedFont: Font {
+        var font: Font
+        if element.fontFamily == "System" {
+            font = .system(size: element.fontSize)
+        } else {
+            font = Font.custom(element.fontFamily, size: element.fontSize)
+        }
+        if element.isBold {
+            font = font.bold()
+        }
+        if element.isItalic {
+            font = font.italic()
+        }
+        return font
+    }
+
+    private var alignmentFromTextAlignment: Alignment {
+        switch element.textAlignment {
+        case .left: return .leading
+        case .center: return .center
+        case .right: return .trailing
+        }
+    }
+}
+
+/// Editable text field view for editing text elements
+struct EditableTextElementView: View {
+    let element: TextElement
+    var isFocused: FocusState<Bool>.Binding
+    let onUpdate: (String) -> Void
+    let onCommit: () -> Void
+
+    @State private var editingText: String = ""
+
+    var body: some View {
+        TextField("Enter text...", text: $editingText, axis: .vertical)
+            .font(computedFont)
+            .foregroundColor(Color(hex: element.textColor))
+            .underline(element.isUnderlined)
+            .multilineTextAlignment(element.textAlignment.alignment)
+            .lineLimit(nil)
+            .focused(isFocused)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignmentFromTextAlignment)
+            .padding(4)
+            .background(Color.white.opacity(0.9))
+            .onAppear {
+                editingText = element.content
+            }
+            .onChange(of: editingText) { _, newValue in
+                onUpdate(newValue)
+            }
+            .onSubmit {
+                onCommit()
+            }
     }
 
     private var computedFont: Font {
