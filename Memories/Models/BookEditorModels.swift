@@ -1,0 +1,380 @@
+import Foundation
+import SwiftUI
+import SwiftData
+
+// MARK: - SwiftData Models for Local Book Persistence
+
+/// Represents a user-created book with multiple pages
+@Model
+final class LocalBook {
+    @Attribute(.unique) var id: UUID
+    var title: String
+    var createdAt: Date
+    var updatedAt: Date
+
+    /// Cover page data stored as JSON
+    var coverData: Data?
+
+    /// Default background image name for new pages (user preference)
+    var defaultBackgroundImageName: String?
+
+    /// Ordered pages in the book
+    @Relationship(deleteRule: .cascade, inverse: \LocalPage.book)
+    var pages: [LocalPage] = []
+
+    init(id: UUID = UUID(), title: String = "Untitled Book") {
+        self.id = id
+        self.title = title
+        self.createdAt = Date()
+        self.updatedAt = Date()
+    }
+
+    var sortedPages: [LocalPage] {
+        pages.sorted { $0.orderIndex < $1.orderIndex }
+    }
+
+    var coverElements: [PageElement] {
+        get {
+            guard let data = coverData else { return [] }
+            return (try? JSONDecoder().decode([PageElement].self, from: data)) ?? []
+        }
+        set {
+            coverData = try? JSONEncoder().encode(newValue)
+            updatedAt = Date()
+        }
+    }
+}
+
+/// Represents a single page within a book
+@Model
+final class LocalPage {
+    @Attribute(.unique) var id: UUID
+    var orderIndex: Int
+    var createdAt: Date
+    var updatedAt: Date
+
+    /// Page elements stored as JSON
+    var elementsData: Data?
+
+    /// Background color stored as hex string
+    var backgroundColorHex: String?
+
+    /// Background image data (if using custom image)
+    var backgroundImageData: Data?
+
+    /// Background image name from asset catalog (e.g., "bookPageBackground1")
+    var backgroundImageName: String?
+
+    var book: LocalBook?
+
+    init(id: UUID = UUID(), orderIndex: Int = 0, backgroundImageName: String? = nil) {
+        self.id = id
+        self.orderIndex = orderIndex
+        self.createdAt = Date()
+        self.updatedAt = Date()
+        self.backgroundImageName = backgroundImageName
+    }
+    
+    var elements: [PageElement] {
+        get {
+            guard let data = elementsData else { return [] }
+            return (try? JSONDecoder().decode([PageElement].self, from: data)) ?? []
+        }
+        set {
+            elementsData = try? JSONEncoder().encode(newValue)
+            updatedAt = Date()
+        }
+    }
+}
+
+// MARK: - Page Element Types (Codable for JSON storage)
+
+/// Protocol for all canvas elements
+protocol CanvasElement: Codable, Identifiable {
+    var id: UUID { get }
+    var position: CGPoint { get set }
+    var size: CGSize { get set }
+    var rotation: Double { get set }
+    var zIndex: Int { get set }
+}
+
+/// Represents a text block on the canvas
+struct TextElement: CanvasElement, Codable, Identifiable {
+    let id: UUID
+    var position: CGPoint
+    var size: CGSize
+    var rotation: Double
+    var zIndex: Int
+
+    // Text-specific properties
+    var content: String
+    var fontFamily: String
+    var fontSize: CGFloat
+    var fontWeight: FontWeightType
+    var textColor: String // Hex color
+    var isBold: Bool
+    var isItalic: Bool
+    var isUnderlined: Bool
+    var textAlignment: TextAlignmentType
+    var lineHeight: CGFloat // Line height multiplier (1.0 = normal)
+
+    init(
+        id: UUID = UUID(),
+        position: CGPoint = .zero,
+        size: CGSize = CGSize(width: 200, height: 50),
+        content: String = "New Text"
+    ) {
+        self.id = id
+        self.position = position
+        self.size = size
+        self.rotation = 0
+        self.zIndex = 0
+        self.content = content
+        self.fontFamily = "System"
+        self.fontSize = 18
+        self.fontWeight = .regular
+        self.textColor = "#000000"
+        self.isBold = false
+        self.isItalic = false
+        self.isUnderlined = false
+        self.textAlignment = .left
+        self.lineHeight = 1.2 // Default line height
+    }
+
+    // Custom decoder for backward compatibility with existing data
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        position = try container.decode(CGPoint.self, forKey: .position)
+        size = try container.decode(CGSize.self, forKey: .size)
+        rotation = try container.decode(Double.self, forKey: .rotation)
+        zIndex = try container.decode(Int.self, forKey: .zIndex)
+        content = try container.decode(String.self, forKey: .content)
+        fontFamily = try container.decode(String.self, forKey: .fontFamily)
+        fontSize = try container.decode(CGFloat.self, forKey: .fontSize)
+        fontWeight = try container.decode(FontWeightType.self, forKey: .fontWeight)
+        textColor = try container.decode(String.self, forKey: .textColor)
+        isBold = try container.decode(Bool.self, forKey: .isBold)
+        isItalic = try container.decode(Bool.self, forKey: .isItalic)
+        isUnderlined = try container.decode(Bool.self, forKey: .isUnderlined)
+        textAlignment = try container.decode(TextAlignmentType.self, forKey: .textAlignment)
+        // Use default value if lineHeight is missing (backward compatibility)
+        lineHeight = try container.decodeIfPresent(CGFloat.self, forKey: .lineHeight) ?? 1.2
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, position, size, rotation, zIndex, content, fontFamily, fontSize
+        case fontWeight, textColor, isBold, isItalic, isUnderlined, textAlignment, lineHeight
+    }
+}
+
+/// Represents an image on the canvas
+struct ImageElement: CanvasElement, Codable, Identifiable {
+    let id: UUID
+    var position: CGPoint
+    var size: CGSize
+    var rotation: Double
+    var zIndex: Int
+
+    // Image-specific properties
+    var imageData: Data
+    var aspectRatio: CGFloat
+
+    init(
+        id: UUID = UUID(),
+        position: CGPoint = .zero,
+        imageData: Data,
+        originalSize: CGSize
+    ) {
+        self.id = id
+        self.position = position
+        self.imageData = imageData
+        self.aspectRatio = originalSize.width / originalSize.height
+        self.size = CGSize(width: 200, height: 200 / aspectRatio)
+        self.rotation = 0
+        self.zIndex = 0
+    }
+}
+
+/// Represents a drawing on the canvas (stored as PencilKit data)
+struct DrawingElement: CanvasElement, Codable, Identifiable {
+    let id: UUID
+    var position: CGPoint
+    var size: CGSize
+    var rotation: Double
+    var zIndex: Int
+
+    // Drawing-specific properties
+    var drawingData: Data // PKDrawing serialized data
+
+    init(
+        id: UUID = UUID(),
+        position: CGPoint = .zero,
+        size: CGSize = CGSize(width: 400, height: 300),
+        drawingData: Data = Data()
+    ) {
+        self.id = id
+        self.position = position
+        self.size = size
+        self.drawingData = drawingData
+        self.rotation = 0
+        self.zIndex = 0
+    }
+}
+
+// MARK: - Supporting Types
+
+enum FontWeightType: String, Codable, CaseIterable {
+    case ultraLight, thin, light, regular, medium, semibold, bold, heavy, black
+
+    var fontWeight: Font.Weight {
+        switch self {
+        case .ultraLight: return .ultraLight
+        case .thin: return .thin
+        case .light: return .light
+        case .regular: return .regular
+        case .medium: return .medium
+        case .semibold: return .semibold
+        case .bold: return .bold
+        case .heavy: return .heavy
+        case .black: return .black
+        }
+    }
+}
+
+enum TextAlignmentType: String, Codable, CaseIterable {
+    case left, center, right, justify
+
+    var alignment: TextAlignment {
+        switch self {
+        case .left: return .leading
+        case .center: return .center
+        case .right: return .trailing
+        case .justify: return .leading // SwiftUI doesn't have native justify, handled separately
+        }
+    }
+}
+
+/// Unified page element wrapper for polymorphic storage
+enum PageElement: Codable, Identifiable {
+    case text(TextElement)
+    case image(ImageElement)
+    case drawing(DrawingElement)
+
+    var id: UUID {
+        switch self {
+        case .text(let element): return element.id
+        case .image(let element): return element.id
+        case .drawing(let element): return element.id
+        }
+    }
+
+    var position: CGPoint {
+        get {
+            switch self {
+            case .text(let e): return e.position
+            case .image(let e): return e.position
+            case .drawing(let e): return e.position
+            }
+        }
+        set {
+            switch self {
+            case .text(var e):
+                e.position = newValue
+                self = .text(e)
+            case .image(var e):
+                e.position = newValue
+                self = .image(e)
+            case .drawing(var e):
+                e.position = newValue
+                self = .drawing(e)
+            }
+        }
+    }
+
+    var size: CGSize {
+        get {
+            switch self {
+            case .text(let e): return e.size
+            case .image(let e): return e.size
+            case .drawing(let e): return e.size
+            }
+        }
+        set {
+            switch self {
+            case .text(var e):
+                e.size = newValue
+                self = .text(e)
+            case .image(var e):
+                e.size = newValue
+                self = .image(e)
+            case .drawing(var e):
+                e.size = newValue
+                self = .drawing(e)
+            }
+        }
+    }
+
+    var rotation: Double {
+        get {
+            switch self {
+            case .text(let e): return e.rotation
+            case .image(let e): return e.rotation
+            case .drawing(let e): return e.rotation
+            }
+        }
+        set {
+            switch self {
+            case .text(var e):
+                e.rotation = newValue
+                self = .text(e)
+            case .image(var e):
+                e.rotation = newValue
+                self = .image(e)
+            case .drawing(var e):
+                e.rotation = newValue
+                self = .drawing(e)
+            }
+        }
+    }
+
+    var zIndex: Int {
+        get {
+            switch self {
+            case .text(let e): return e.zIndex
+            case .image(let e): return e.zIndex
+            case .drawing(let e): return e.zIndex
+            }
+        }
+        set {
+            switch self {
+            case .text(var e):
+                e.zIndex = newValue
+                self = .text(e)
+            case .image(var e):
+                e.zIndex = newValue
+                self = .image(e)
+            case .drawing(var e):
+                e.zIndex = newValue
+                self = .drawing(e)
+            }
+        }
+    }
+}
+
+// MARK: - Canvas Constants
+
+enum CanvasConstants {
+    /// Virtual canvas size for consistent rendering across devices
+    static let virtualSize = CGSize(width: 1000, height: 1400)
+
+    /// Minimum element size
+    static let minElementSize: CGFloat = 30
+
+    /// Default text element size
+    static let defaultTextSize = CGSize(width: 200, height: 50)
+
+    /// Default image element width
+    static let defaultImageWidth: CGFloat = 250
+}
+

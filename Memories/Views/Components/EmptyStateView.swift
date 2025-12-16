@@ -1,14 +1,18 @@
 import SwiftUI
 
 struct EmptyStateView: View {
+    let iconName: String
+    let title: String
+    let message: String
+
     var body: some View {
         VStack(spacing: 12) {
-            Image(systemName: "person.2.fill")
+            Image(systemName: iconName)
                 .font(.largeTitle)
                 .foregroundColor(.gray)
-            Text("No shared books yet")
+            Text(title)
                 .font(.headline)
-            Text("Search for a friend to start creating memories together.")
+            Text(message)
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)

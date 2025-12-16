@@ -1,14 +1,29 @@
 import Foundation
 import UIKit
+import Combine
 import PencilKit
 
 class EditorViewModel {
     
     var onDataLoaded: (() -> Void)?
-    private(set) var pageData: PageData
+    @Published var pageData: PageData
+    @Published var recipient: Profile? // If set, we are in "Letter Mode"
+    @Published var isSending: Bool = false
     
-    init(pageData: PageData) {
+    init(pageData: PageData, recipient: Profile? = nil) {
         self.pageData = pageData
+        self.recipient = recipient
+    }
+    
+    func sendLetter(imageData: Data) async throws {
+        guard let recipient = recipient else {
+            throw NSError(domain: "Memories", code: 400, userInfo: [NSLocalizedDescriptionKey: "Errore: Nessun destinatario selezionato per questa lettera."])
+        }
+        
+        await MainActor.run { self.isSending = true }
+        defer { Task { await MainActor.run { self.isSending = false } } }
+        
+        try await SocialService.shared.sendLetter(recipientId: recipient.id, imageData: imageData)
     }
     
     func updateBodyText(_ text: String) {
@@ -55,6 +70,14 @@ class EditorViewModel {
         return .white
     }
     
+    func updateBackgroundImageName(_ name: String?) {
+        pageData.backgroundImageName = name
+    }
+    
+    func getBackgroundImageName() -> String? {
+        return pageData.backgroundImageName
+    }
+    
     func addImage(imageData: Data, imageSize: CGSize, center: CGPoint) {
         let size = CGSize(width: 250, height: 250 * (imageSize.height / imageSize.width))
         let frame = CGRect(origin: CGPoint(x: center.x - size.width/2, y: center.y - size.height/2), size: size)
@@ -78,11 +101,7 @@ class EditorViewModel {
         onDataLoaded?()
     }
     
-    func saveDrawing(_ drawing: PKDrawing) {
-        pageData.drawingData = drawing.dataRepresentation()
-        // Qui ci andrà il salvataggio su Supabase in futuro
-        print("Salvataggio locale completato. Items: \(pageData.items.count), BodyText length: \(pageData.bodyText.count)")
-    }
+    // saveDrawing removed as per user request
     
     func restoreDrawing() -> PKDrawing? {
         try? PKDrawing(data: pageData.drawingData)

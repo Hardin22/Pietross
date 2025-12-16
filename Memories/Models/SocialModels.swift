@@ -8,7 +8,7 @@ struct Profile: Codable, Identifiable {
     let fullName: String?
     let avatarUrl: String?
     let updatedAt: Date?
-    
+
     enum CodingKeys: String, CodingKey {
         case id
         case username
@@ -24,7 +24,9 @@ struct Friendship: Codable, Identifiable {
     let userB: UUID
     let status: FriendshipStatus
     let createdAt: Date
-    
+
+    var sender: Profile?  // Populated manually (the user who sent the request)
+
     enum CodingKeys: String, CodingKey {
         case id
         case userA = "user_a"
@@ -37,21 +39,23 @@ struct Friendship: Codable, Identifiable {
 enum FriendshipStatus: String, Codable {
     case pending
     case accepted
-    case rejected // Not in DB constraint but useful for UI handling if needed, though DB only has pending/accepted
+    case rejected  // Not in DB constraint but useful for UI handling if needed, though DB only has pending/accepted
 }
 
 struct Book: Codable, Identifiable {
     let id: UUID
     let friendshipId: UUID
-    let coverUrl: String?
-    let title: String?
+    var coverUrl: String?
+    var title: String?
+    var vibe: String?  // Hex color or vibe identifier
     let createdAt: Date
-    
+
     enum CodingKeys: String, CodingKey {
         case id
         case friendshipId = "friendship_id"
         case coverUrl = "cover_url"
         case title
+        case vibe
         case createdAt = "created_at"
     }
 }
@@ -60,23 +64,18 @@ struct Page: Codable, Identifiable {
     let id: UUID
     let bookId: UUID
     let authorId: UUID
-    let type: PageType
-    let contentJson: Data // JSONB
-    let drawingPath: String?
+    let photoUrl: String
+    let memoryText: String?
+    let photoDate: Date?  // YYYY-MM-DD
     let createdAt: Date
-    
+
     enum CodingKeys: String, CodingKey {
         case id
         case bookId = "book_id"
         case authorId = "author_id"
-        case type
-        case contentJson = "content_json"
-        case drawingPath = "drawing_path"
+        case photoUrl = "photo_url"
+        case memoryText = "memory_text"
+        case photoDate = "photo_date"
         case createdAt = "created_at"
     }
-}
-
-enum PageType: String, Codable {
-    case letter
-    case memory
 }

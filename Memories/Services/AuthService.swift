@@ -12,7 +12,7 @@ class AuthService {
     }
     
     func signOut() async throws {
-        try await client.auth.signOut()
+        _ = try? await client.auth.signOut()
     }
     
     func signInWithApple(idToken: String, nonce: String, fullName: PersonNameComponents?) async throws {

@@ -10,6 +10,7 @@ struct PageData: Codable {
     var bodyText: String = ""
     var attributedBodyText: Data? // RTF Data for rich text
     var backgroundColorData: Data? // Encoded UIColor
+    var backgroundImageName: String? // Name of the asset for background template
     
     // Dimensioni virtuali fisse per garantire consistenza tra dispositivi
     static let virtualSize = CGSize(width: 1000, height: 1400)

@@ -7,20 +7,20 @@ struct AvatarView: View {
     
     var body: some View {
         if let avatarUrl = avatarUrl, let url = URL(string: avatarUrl) {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .empty:
+            HStack {
+                CachedImage(url: url) { image in
+                    image
+                        .resizable()
+                        .scaledToFill()
+                } placeholder: {
                     ProgressView()
-                case .success(let image):
-                    image.resizable().scaledToFill()
-                case .failure:
-                    Color.red.opacity(0.5)
-                @unknown default:
-                    EmptyView()
                 }
+                .frame(width: size, height: size)
+                .clipShape(Circle())
+                Text(username ?? "")
+                    .font(.caption)
+                    .foregroundColor(.gray)
             }
-            .frame(width: size, height: size)
-            .clipShape(Circle())
         } else {
             Circle()
                 .fill(Color.gray.opacity(0.2))
