@@ -44,6 +44,7 @@ class SocialViewModel: ObservableObject {
             group.addTask { await self.fetchPendingRequests() }
             group.addTask { await self.fetchBooks() }
             group.addTask { await self.fetchFriends() }
+            group.addTask { await self.fetchAcceptedFriendships() }
             group.addTask { await self.fetchCurrentUser() }
         }
 
@@ -157,6 +158,48 @@ class SocialViewModel: ObservableObject {
         } catch {
             self.errorMessage = "Failed to decline request: \(error.localizedDescription)"
         }
+    }
+
+    @Published var acceptedFriendships: [Friendship] = []
+
+    @MainActor
+    func fetchAcceptedFriendships() async {
+        do {
+            // We need a service method to fetch accepted friendships
+            // For now, let's assume we can get them.
+            // If SocialService doesn't have it, we might need to add it or rely on `friends` list if we can link them.
+            // Actually, `getFriends` returns profiles.
+            // Let's fetch friendships where status is accepted.
+
+            let currentUserId = SupabaseManager.shared.client.auth.currentUser?.id
+
+            let response: [Friendship] = try await SupabaseManager.shared.client
+                .from("friendships")
+                .select()
+                .eq("status", value: "accepted")
+                .or("user_a.eq.\(currentUserId!),user_b.eq.\(currentUserId!)")
+                .execute()
+                .value
+
+            self.acceptedFriendships = response
+        } catch {
+            print("Failed to fetch accepted friendships: \(error)")
+        }
+    }
+
+    func getPartner(for book: Book) -> Profile? {
+        // 1. Find the friendship
+        guard let friendship = acceptedFriendships.first(where: { $0.id == book.friendshipId })
+        else {
+            return nil
+        }
+
+        // 2. Find the partner ID
+        let currentUserId = SupabaseManager.shared.client.auth.currentUser?.id
+        let partnerId = (friendship.userA == currentUserId) ? friendship.userB : friendship.userA
+
+        // 3. Find the profile in `friends` list (which contains profiles of accepted friends)
+        return friends.first(where: { $0.id == partnerId })
     }
 
     func signOut() {

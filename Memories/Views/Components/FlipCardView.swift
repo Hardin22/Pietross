@@ -73,12 +73,15 @@ struct CardBack: View {
             // Cream/Paper background
             Color(hex: "#FDFBF7")
 
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .center, spacing: 16) {
+                Spacer()
+
                 // Date as Title
                 if let date = page.photoDate {
                     Text(date.formatted(date: .long, time: .omitted))
                         .font(.system(size: 24, weight: .bold, design: .serif))
                         .foregroundColor(.black)
+                        .multilineTextAlignment(.center)
                 }
 
                 // Memory Text
@@ -87,6 +90,7 @@ struct CardBack: View {
                         .font(.system(size: 16, weight: .regular, design: .serif))
                         .foregroundColor(.black.opacity(0.8))
                         .lineSpacing(4)
+                        .multilineTextAlignment(.center)
                 } else {
                     Text("No description")
                         .font(.system(size: 14, design: .serif))
@@ -95,15 +99,6 @@ struct CardBack: View {
                 }
 
                 Spacer()
-
-                // Decorative element or footer
-                HStack {
-                    Spacer()
-                    Image(systemName: "heart.fill")
-                        .font(.caption)
-                        .foregroundColor(.red.opacity(0.6))
-                    Spacer()
-                }
             }
             .padding(32)
         }

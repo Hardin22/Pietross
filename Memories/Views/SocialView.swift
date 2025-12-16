@@ -31,7 +31,7 @@ struct SocialView: View {
                     VStack(alignment: .leading, spacing: 24) {
                         // Header
                         Text("My Memories")
-                            .font(.largeTitle)
+                            .font(.title2)  // Reduced from largeTitle
                             .fontWeight(.bold)
                             .padding(.horizontal)
                             .padding(.top)
@@ -45,14 +45,26 @@ struct SocialView: View {
                             .padding(.top, 50)
                         } else {
                             ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 16) {
+                                HStack(spacing: 20) {
                                     ForEach(viewModel.books, id: \Book.id) { (book: Book) in
                                         Button(action: {
                                             editorConfig = .book(book)
                                         }) {
-                                            VStack(alignment: .leading, spacing: 8) {
-                                                // Book Cover
+                                            VStack(spacing: 12) {
+                                                // Book Card (Postmark Style)
                                                 ZStack {
+                                                    // 1. Vibe Background
+                                                    Color(hex: book.vibe ?? "#FFB7B2")
+
+                                                    // 2. Postmark Frame
+                                                    Image("postmark")
+                                                        .resizable()
+                                                        .aspectRatio(contentMode: .fit)
+                                                        .padding(20)  // Padding for the vibe color to show around? Or maybe postmark is the border.
+                                                    // Based on user image: Red background (vibe), White Stamp (postmark), Photo inside.
+                                                    // So Postmark should be white stamp.
+
+                                                    // 3. Cover Image (Centered inside postmark)
                                                     if let coverUrl = book.coverUrl,
                                                         let url = URL(string: coverUrl)
                                                     {
@@ -64,37 +76,38 @@ struct SocialView: View {
                                                                     .aspectRatio(contentMode: .fill)
                                                             },
                                                             placeholder: {
-                                                                ZStack {
-                                                                    Color.gray.opacity(0.1)
-                                                                    ProgressView()
-                                                                }
+                                                                Color.gray.opacity(0.3)
                                                             }
                                                         )
-                                                        .aspectRatio(0.75, contentMode: .fill)
-                                                        .frame(width: 120, height: 160)
+                                                        .frame(width: 100, height: 140)  // Adjust based on postmark hole
                                                         .clipped()
                                                     } else {
-                                                        ZStack {
-                                                            Color.blue.opacity(0.1)
-                                                            Image(systemName: "book.closed.fill")
-                                                                .font(.largeTitle)
-                                                                .foregroundColor(.blue)
-                                                        }
-                                                        .frame(width: 120, height: 160)
+                                                        Image(systemName: "photo")
+                                                            .font(.largeTitle)
+                                                            .foregroundColor(.gray)
                                                     }
                                                 }
-                                                .cornerRadius(12)
+                                                .frame(width: 180, height: 260)  // Card size
+                                                .clipped()  // No border radius requested for the container itself
                                                 .shadow(
                                                     color: .black.opacity(0.1), radius: 4, x: 0,
                                                     y: 2)
 
-                                                // Book Title
-                                                Text(book.title ?? "Untitled Book")
-                                                    .font(.caption)
-                                                    .fontWeight(.medium)
-                                                    .foregroundColor(.primary)
-                                                    .lineLimit(1)
-                                                    .frame(width: 120, alignment: .leading)
+                                                // Title & Partner
+                                                HStack {
+                                                    if let partner = viewModel.getPartner(for: book)
+                                                    {
+                                                        AvatarView(
+                                                            avatarUrl: partner.avatarUrl,
+                                                            username: partner.username, size: 24)
+                                                    }
+
+                                                    Text(book.title ?? "Untitled")
+                                                        .font(.subheadline)
+                                                        .fontWeight(.semibold)
+                                                        .foregroundColor(.primary)
+                                                        .lineLimit(1)
+                                                }
                                             }
                                         }
                                     }
