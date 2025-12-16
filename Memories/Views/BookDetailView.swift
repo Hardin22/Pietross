@@ -104,7 +104,7 @@ struct BookSetupTitleView: View {
                             if let image = viewModel.coverImage {
                                 Image(uiImage: image)
                                     .resizable()
-                                    .aspectRatio(contentMode: .fill)
+                                    .aspectRatio(contentMode: .fit)
                                     .frame(width: 160, height: 220)
                                     .cornerRadius(12)
                                     .clipped()
@@ -295,7 +295,7 @@ struct AddMemoryView: View {
                                 if let image = viewModel.newMemoryImage {
                                     Image(uiImage: image)
                                         .resizable()
-                                        .aspectRatio(contentMode: .fill)
+                                        .aspectRatio(contentMode: .fit)
                                         .frame(height: 350)
                                         .cornerRadius(16)
                                         .clipped()
@@ -472,7 +472,7 @@ struct PagesView: View {
                                 CachedImage(url: URL(string: page.photoUrl)!) { image in
                                     image
                                         .resizable()
-                                        .aspectRatio(contentMode: .fill)
+                                        .aspectRatio(contentMode: .fit)
                                 } placeholder: {
                                     Color.gray.opacity(0.3)
                                 }
