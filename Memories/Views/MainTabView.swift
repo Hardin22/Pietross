@@ -1,31 +1,26 @@
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct MainTabView: View {
     @Environment(\.modelContext) private var modelContext
 
     var body: some View {
         TabView {
-            //SocialView()
-            //    .tabItem {
-            //        Label("Home", systemImage: "house.fill")
-            //    }
-            
-            HomeView()
+            SocialView()
                 .tabItem {
-                    Label("Home", systemImage: "house.fill")
+                    Label("Memories", systemImage: "book.closed.fill")
                 }
-            
+
             FriendsView()
-                .tabItem{
+                .tabItem {
                     Label("Friends", systemImage: "figure.2.right.holdinghands")
                 }
             IncomingView()
-                .tabItem{
+                .tabItem {
                     Label("Incoming", systemImage: "bell.fill")
                 }
             SendView()
-                .tabItem{
+                .tabItem {
                     Label("Send", systemImage: "envelope.front.fill")
                 }
             //BooksView(modelContext: modelContext)
@@ -35,7 +30,6 @@ struct MainTabView: View {
         }
     }
 }
-
 
 struct BooksView: View {
     let modelContext: ModelContext
