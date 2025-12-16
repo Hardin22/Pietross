@@ -1,28 +1,25 @@
-import Foundation
 import Combine
-import Supabase
+import Foundation
 import Realtime
+import Supabase
 
 class SocialViewModel: ObservableObject {
-    
+
     @Published var searchResults: [Profile] = []
     @Published var pendingRequests: [Friendship] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var books: [Book] = []
-    @Published var friends: [Profile] = [] // New friends list
-    @Published var receivedLetters: [Letter] = [] // Received letters
+    @Published var friends: [Profile] = []  // New friends list
     @Published var currentUser: Profile?
     @Published var searchText: String = ""
-    
     var unreadCount: Int {
-        let unreadLetters = receivedLetters.filter { !$0.isRead }.count
-        return unreadLetters + pendingRequests.count
+        return pendingRequests.count
     }
-    
+
     private let socialService = SocialService.shared
     private var cancellables = Set<AnyCancellable>()
-    
+
     init() {
         $searchText
             .debounce(for: .milliseconds(500), scheduler: RunLoop.main)
@@ -37,9 +34,9 @@ class SocialViewModel: ObservableObject {
             }
             .store(in: &cancellables)
     }
-    
+
     // MARK: - Data Loading
-    
+
     @MainActor
     func loadData() async {
         // Parallel execution
@@ -48,33 +45,24 @@ class SocialViewModel: ObservableObject {
             group.addTask { await self.fetchBooks() }
             group.addTask { await self.fetchFriends() }
             group.addTask { await self.fetchCurrentUser() }
-            group.addTask { await self.fetchReceivedLetters() }
         }
-        
+
         // Start Realtime Subscription
         await subscribeToRealtimeUpdates()
     }
-    
+
     @MainActor
     func subscribeToRealtimeUpdates() async {
         // Friendships Subscription
-        let friendshipsChannel = SupabaseManager.shared.client.channel(AppConstants.Realtime.friendshipsChannel)
+        let friendshipsChannel = SupabaseManager.shared.client.channel(
+            AppConstants.Realtime.friendshipsChannel)
         let friendshipChanges = friendshipsChannel.postgresChange(
             AnyAction.self,
             schema: "public",
             table: AppConstants.Table.friendships
         )
         await friendshipsChannel.subscribe()
-        
-        // Letters Subscription
-        let lettersChannel = SupabaseManager.shared.client.channel(AppConstants.Realtime.lettersChannel)
-        let letterChanges = lettersChannel.postgresChange(
-            AnyAction.self,
-            schema: "public",
-            table: AppConstants.Table.letters
-        )
-        await lettersChannel.subscribe()
-        
+
         // Handle Friendships
         Task {
             for await _ in friendshipChanges {
@@ -84,16 +72,8 @@ class SocialViewModel: ObservableObject {
                 await self.fetchFriends()
             }
         }
-        
-        // Handle Letters
-        Task {
-            for await _ in letterChanges {
-                print("Realtime: Letter received")
-                await self.fetchReceivedLetters()
-            }
-        }
     }
-    
+
     @MainActor
     func fetchCurrentUser() async {
         do {
@@ -102,7 +82,7 @@ class SocialViewModel: ObservableObject {
             print("Failed to fetch current user: \(error)")
         }
     }
-    
+
     @MainActor
     func fetchPendingRequests() async {
         do {
@@ -111,7 +91,7 @@ class SocialViewModel: ObservableObject {
             print("Failed to fetch requests: \(error)")
         }
     }
-    
+
     @MainActor
     func fetchBooks() async {
         do {
@@ -120,7 +100,7 @@ class SocialViewModel: ObservableObject {
             print("Failed to fetch books: \(error)")
         }
     }
-    
+
     @MainActor
     func fetchFriends() async {
         do {
@@ -129,35 +109,26 @@ class SocialViewModel: ObservableObject {
             print("Failed to fetch friends: \(error)")
         }
     }
-    
-    @MainActor
-    func fetchReceivedLetters() async {
-        do {
-            self.receivedLetters = try await socialService.getReceivedLetters()
-        } catch {
-            print("Failed to fetch letters: \(error)")
-        }
-    }
-    
+
     // MARK: - Actions
-    
+
     @MainActor
     func search(query: String) async {
         guard !query.isEmpty else {
             self.searchResults = []
             return
         }
-        
+
         // We don't set global isLoading for search to avoid flickering the whole screen
         // The view can use a local spinner if needed
-        
+
         do {
             self.searchResults = try await socialService.searchUsers(query: query)
         } catch {
             print("Search failed: \(error)")
         }
     }
-    
+
     @MainActor
     func sendRequest(to user: Profile) async {
         do {
@@ -167,7 +138,7 @@ class SocialViewModel: ObservableObject {
             self.errorMessage = "Failed to send request: \(error.localizedDescription)"
         }
     }
-    
+
     @MainActor
     func accept(request: Friendship) async {
         do {
@@ -177,7 +148,7 @@ class SocialViewModel: ObservableObject {
             self.errorMessage = "Failed to accept request: \(error.localizedDescription)"
         }
     }
-    
+
     @MainActor
     func decline(request: Friendship) async {
         do {
@@ -187,36 +158,7 @@ class SocialViewModel: ObservableObject {
             self.errorMessage = "Failed to decline request: \(error.localizedDescription)"
         }
     }
-    
-    func markLetterAsRead(_ letter: Letter) {
-        guard !letter.isRead else { return }
-        
-        // Optimistic update
-        if let index = receivedLetters.firstIndex(where: { $0.id == letter.id }) {
-            // Create a new Letter instance with isRead = true
-            // Since Letter properties are 'let', we need to recreate it.
-            var updatedLetter = Letter(
-                id: letter.id,
-                senderId: letter.senderId,
-                recipientId: letter.recipientId,
-                imageUrl: letter.imageUrl,
-                isRead: true,
-                createdAt: letter.createdAt
-            )
-            updatedLetter.sender = letter.sender
-            receivedLetters[index] = updatedLetter
-        }
-        
-        Task {
-            do {
-                try await socialService.markLetterAsRead(id: letter.id)
-                await fetchReceivedLetters() // Refresh to get updated status
-            } catch {
-                print("Failed to mark letter as read: \(error)")
-            }
-        }
-    }
-    
+
     func signOut() {
         Task {
             try? await AuthService.shared.signOut()

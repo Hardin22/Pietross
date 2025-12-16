@@ -1,5 +1,5 @@
-import SwiftUI
 import PencilKit
+import SwiftUI
 
 /// Corner positions for resize handles
 enum ResizeCorner {
@@ -10,7 +10,7 @@ enum ResizeCorner {
 struct CanvasElementWrapperView: View {
     let element: PageElement
     let isSelected: Bool
-    let isEditing: Bool // Whether this text element is in edit mode
+    let isEditing: Bool  // Whether this text element is in edit mode
     let scale: CGFloat
     let onSelect: () -> Void
     let onUpdate: (PageElement) -> Void
@@ -145,8 +145,8 @@ struct CanvasElementWrapperView: View {
                     .strokeBorder(Color.blue, lineWidth: 2)
             )
             .shadow(color: .black.opacity(0.15), radius: 2, y: 1)
-            .frame(width: handleSize, height: handleSize) // Larger hit area
-            .contentShape(Circle().scale(2)) // Even larger touch target
+            .frame(width: handleSize, height: handleSize)  // Larger hit area
+            .contentShape(Circle().scale(2))  // Even larger touch target
             .gesture(resizeGesture(for: corner))
     }
 
@@ -177,7 +177,8 @@ struct CanvasElementWrapperView: View {
 
                 case .bottomLeft:
                     let widthChange = deltaX
-                    newWidth = max(CanvasConstants.minElementSize, resizeStartSize.width - widthChange)
+                    newWidth = max(
+                        CanvasConstants.minElementSize, resizeStartSize.width - widthChange)
                     newHeight = max(CanvasConstants.minElementSize, resizeStartSize.height + deltaY)
                     // Adjust position to keep right edge fixed
                     if newWidth > CanvasConstants.minElementSize {
@@ -187,7 +188,8 @@ struct CanvasElementWrapperView: View {
                 case .topRight:
                     newWidth = max(CanvasConstants.minElementSize, resizeStartSize.width + deltaX)
                     let heightChange = deltaY
-                    newHeight = max(CanvasConstants.minElementSize, resizeStartSize.height - heightChange)
+                    newHeight = max(
+                        CanvasConstants.minElementSize, resizeStartSize.height - heightChange)
                     // Adjust position to keep bottom edge fixed
                     if newHeight > CanvasConstants.minElementSize {
                         newPosition.y = resizeStartPosition.y + heightChange / 2
@@ -196,8 +198,10 @@ struct CanvasElementWrapperView: View {
                 case .topLeft:
                     let widthChange = deltaX
                     let heightChange = deltaY
-                    newWidth = max(CanvasConstants.minElementSize, resizeStartSize.width - widthChange)
-                    newHeight = max(CanvasConstants.minElementSize, resizeStartSize.height - heightChange)
+                    newWidth = max(
+                        CanvasConstants.minElementSize, resizeStartSize.width - widthChange)
+                    newHeight = max(
+                        CanvasConstants.minElementSize, resizeStartSize.height - heightChange)
                     // Adjust position to keep bottom-right edge fixed
                     if newWidth > CanvasConstants.minElementSize {
                         newPosition.x = resizeStartPosition.x + widthChange / 2
@@ -287,7 +291,9 @@ struct TextElementView: View {
     var body: some View {
         Text(element.content.isEmpty ? "Tap to edit" : element.content)
             .font(computedFont)
-            .foregroundColor(element.content.isEmpty ? Color.gray.opacity(0.5) : Color(hex: element.textColor))
+            .foregroundColor(
+                element.content.isEmpty ? Color.gray.opacity(0.5) : Color(hex: element.textColor)
+            )
             .underline(element.isUnderlined)
             .multilineTextAlignment(element.textAlignment.alignment)
             .lineSpacing((element.lineHeight - 1.0) * element.fontSize)
@@ -424,44 +430,3 @@ struct DrawingElementView: View {
         }
     }
 }
-
-// MARK: - Color Extension for Hex Support
-
-extension Color {
-    init(hex: String) {
-        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        var int: UInt64 = 0
-        Scanner(string: hex).scanHexInt64(&int)
-
-        let a, r, g, b: UInt64
-        switch hex.count {
-        case 3: // RGB (12-bit)
-            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
-        case 6: // RGB (24-bit)
-            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
-        case 8: // ARGB (32-bit)
-            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
-        default:
-            (a, r, g, b) = (255, 0, 0, 0)
-        }
-
-        self.init(
-            .sRGB,
-            red: Double(r) / 255,
-            green: Double(g) / 255,
-            blue: Double(b) / 255,
-            opacity: Double(a) / 255
-        )
-    }
-
-    func toHex() -> String {
-        guard let components = UIColor(self).cgColor.components else { return "#000000" }
-
-        let r = Int(components[0] * 255)
-        let g = Int(components[1] * 255)
-        let b = Int(components[2] * 255)
-
-        return String(format: "#%02X%02X%02X", r, g, b)
-    }
-}
-
