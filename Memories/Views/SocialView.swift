@@ -50,7 +50,7 @@ struct SocialView: View {
                                         Button(action: {
                                             editorConfig = .book(book)
                                         }) {
-                                            VStack(spacing: 12) {
+                                            VStack(alignment: .leading, spacing: 12) {
                                                 // Book Card (Postmark Style)
                                                 ZStack {
                                                     // 1. Vibe Background
@@ -94,20 +94,22 @@ struct SocialView: View {
                                                     y: 2)
 
                                                 // Title & Partner
-                                                HStack {
-                                                    if let partner = viewModel.getPartner(for: book)
-                                                    {
-                                                        AvatarView(
-                                                            avatarUrl: partner.avatarUrl,
-                                                            username: partner.username, size: 24)
-                                                    }
-
+                                                VStack(alignment: .leading, spacing: 4) {
                                                     Text(book.title ?? "Untitled")
                                                         .font(.subheadline)
                                                         .fontWeight(.semibold)
                                                         .foregroundColor(.primary)
                                                         .lineLimit(1)
+
+                                                    if let partner = viewModel.getPartner(for: book) {
+                                                        AvatarView(
+                                                            avatarUrl: partner.avatarUrl,
+                                                            username: partner.username,
+                                                            size: 24
+                                                        )
+                                                    }
                                                 }
+
                                             }
                                         }
                                     }

@@ -153,20 +153,6 @@ struct FriendRow: View {
     var body: some View {
         HStack(spacing: 12) {
             AvatarView(avatarUrl: friend.avatarUrl, username: friend.username, size: 50)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(friend.username ?? "Unknown")
-                    .font(.body)
-                    .fontWeight(.medium)
-
-                if let fullName = friend.fullName, !fullName.isEmpty {
-                    Text(fullName)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-            }
-
-            Spacer()
         }
         .padding(.horizontal)
         .padding(.vertical, 12)
