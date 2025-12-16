@@ -284,6 +284,19 @@ struct AddMemoryView: View {
     @State private var showImagePicker = false
     @Environment(\.dismiss) var dismiss
 
+    private var isEditMode: Bool {
+        viewModel.isEditingPage
+    }
+
+    // In edit mode, we can save if text is not empty (photo is optional since we keep existing)
+    private var canSave: Bool {
+        if isEditMode {
+            return !viewModel.newMemoryText.isEmpty && !viewModel.isLoading
+        } else {
+            return viewModel.newMemoryImage != nil && !viewModel.newMemoryText.isEmpty && !viewModel.isLoading
+        }
+    }
+
     var body: some View {
         NavigationView {
             VStack(spacing: 20) {
@@ -293,13 +306,43 @@ struct AddMemoryView: View {
                         Button(action: { showImagePicker = true }) {
                             ZStack {
                                 if let image = viewModel.newMemoryImage {
+                                    // New image selected
                                     Image(uiImage: image)
                                         .resizable()
                                         .aspectRatio(contentMode: .fit)
                                         .frame(height: 350)
                                         .cornerRadius(16)
                                         .clipped()
+                                } else if isEditMode, let photoUrl = viewModel.editingPagePhotoUrl,
+                                          let url = URL(string: photoUrl) {
+                                    // In edit mode, show existing photo
+                                    ZStack {
+                                        CachedImage(url: url) { image in
+                                            image
+                                                .resizable()
+                                                .aspectRatio(contentMode: .fit)
+                                        } placeholder: {
+                                            Color.gray.opacity(0.3)
+                                        }
+                                        .frame(height: 350)
+                                        .cornerRadius(16)
+                                        .clipped()
+
+                                        // Overlay to indicate tap to change
+                                        VStack {
+                                            Spacer()
+                                            HStack {
+                                                Spacer()
+                                                Image(systemName: "pencil.circle.fill")
+                                                    .font(.system(size: 30))
+                                                    .foregroundColor(.white)
+                                                    .shadow(radius: 3)
+                                                    .padding(12)
+                                            }
+                                        }
+                                    }
                                 } else {
+                                    // Empty placeholder
                                     ZStack {
                                         Color.gray.opacity(0.1)
                                         VStack(spacing: 12) {
@@ -366,7 +409,13 @@ struct AddMemoryView: View {
                 // Save Button
                 Button(action: {
                     Task {
-                        if await viewModel.addMemory() {
+                        let success: Bool
+                        if isEditMode {
+                            success = await viewModel.updateMemory()
+                        } else {
+                            success = await viewModel.addMemory()
+                        }
+                        if success {
                             dismiss()
                         }
                     }
@@ -375,7 +424,7 @@ struct AddMemoryView: View {
                         ProgressView()
                             .progressViewStyle(CircularProgressViewStyle(tint: .white))
                     } else {
-                        Text("Save Memory")
+                        Text(isEditMode ? "Update Memory" : "Save Memory")
                             .fontWeight(.bold)
                     }
                 }
@@ -386,19 +435,17 @@ struct AddMemoryView: View {
                 .cornerRadius(16)
                 .padding(.horizontal)
                 .padding(.bottom)
-                .disabled(
-                    viewModel.newMemoryImage == nil || viewModel.newMemoryText.isEmpty
-                        || viewModel.isLoading
-                )
-                .opacity(
-                    (viewModel.newMemoryImage == nil || viewModel.newMemoryText.isEmpty) ? 0.5 : 1.0
-                )
+                .disabled(!canSave)
+                .opacity(canSave ? 1.0 : 0.5)
             }
-            .navigationTitle("New Memory")
+            .navigationTitle(isEditMode ? "Edit Memory" : "New Memory")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") {
+                        if isEditMode {
+                            viewModel.cancelEditing()
+                        }
                         dismiss()
                     }
                     .foregroundColor(.black)
@@ -407,6 +454,12 @@ struct AddMemoryView: View {
         }
         .sheet(isPresented: $showImagePicker) {
             ImagePicker(image: $viewModel.newMemoryImage)
+        }
+        .onDisappear {
+            // Ensure we clean up edit state if dismissed
+            if isEditMode {
+                viewModel.cancelEditing()
+            }
         }
     }
 }

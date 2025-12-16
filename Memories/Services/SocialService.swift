@@ -357,6 +357,46 @@ class SocialService {
         return pages
     }
 
+    func deletePage(pageId: UUID) async throws {
+        try await client
+            .from("pages")
+            .delete()
+            .eq("id", value: pageId)
+            .execute()
+    }
+
+    func updatePage(pageId: UUID, photoData: Data?, memoryText: String, photoDate: Date) async throws {
+        var updateValues: [String: AnyJSON] = [
+            "memory_text": .string(memoryText),
+            "photo_date": .string(ISO8601DateFormatter().string(from: photoDate))
+        ]
+
+        // If new photo provided, upload it
+        if let photoData = photoData {
+            guard let userId = client.auth.currentUser?.id else {
+                throw NSError(domain: "SocialService", code: 401, userInfo: [NSLocalizedDescriptionKey: "Not authenticated"])
+            }
+
+            let fileName = "\(userId.uuidString)/\(UUID().uuidString).jpg"
+
+            try await client.storage
+                .from("page-photos")
+                .upload(fileName, data: photoData, options: .init(contentType: "image/jpeg", upsert: true))
+
+            let publicUrl = try client.storage
+                .from("page-photos")
+                .getPublicURL(path: fileName)
+
+            updateValues["photo_url"] = .string(publicUrl.absoluteString)
+        }
+
+        try await client
+            .from("pages")
+            .update(updateValues)
+            .eq("id", value: pageId)
+            .execute()
+    }
+
     // MARK: - Letters (Legacy)
 
     func sendLetter(recipientId: UUID, imageData: Data) async throws {

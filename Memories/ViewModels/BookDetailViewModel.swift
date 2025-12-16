@@ -19,10 +19,15 @@ class BookDetailViewModel: ObservableObject {
     @Published var selectedVibe: String?
     @Published var coverImage: UIImage?
 
-    // Add Memory State
+    // Add/Edit Memory State
     @Published var newMemoryImage: UIImage?
     @Published var newMemoryText: String = ""
     @Published var newMemoryDate: Date = Date()
+
+    // Edit Mode State
+    @Published var isEditingPage = false
+    @Published var editingPageId: UUID?
+    private var originalPhotoUrl: String?
 
     private let socialService = SocialService.shared
 
@@ -133,5 +138,102 @@ class BookDetailViewModel: ObservableObject {
             isLoading = false
             return false
         }
+    }
+
+    func deletePage(_ page: Page) async {
+        isLoading = true
+        do {
+            try await socialService.deletePage(pageId: page.id)
+
+            // Remove the page from local array
+            pages.removeAll { $0.id == page.id }
+
+            // Update selected page if needed
+            if selectedPageId == page.id {
+                selectedPageId = pages.last?.id
+            }
+
+            isLoading = false
+        } catch {
+            alertItem = AlertItem(message: "Failed to delete memory: \(error.localizedDescription)")
+            isLoading = false
+        }
+    }
+
+    // MARK: - Edit Mode
+
+    /// Start editing an existing page
+    func startEditingPage(_ page: Page) {
+        isEditingPage = true
+        editingPageId = page.id
+        originalPhotoUrl = page.photoUrl
+
+        // Pre-populate the form fields
+        newMemoryText = page.memoryText ?? ""
+        newMemoryDate = page.photoDate ?? Date()
+        newMemoryImage = nil // Will show existing image from URL
+    }
+
+    /// Cancel editing and reset form
+    func cancelEditing() {
+        isEditingPage = false
+        editingPageId = nil
+        originalPhotoUrl = nil
+        resetMemoryForm()
+    }
+
+    /// Reset the memory form to default values
+    func resetMemoryForm() {
+        newMemoryImage = nil
+        newMemoryText = ""
+        newMemoryDate = Date()
+    }
+
+    /// Update an existing page
+    func updateMemory() async -> Bool {
+        guard let pageId = editingPageId else {
+            alertItem = AlertItem(message: "No page selected for editing.")
+            return false
+        }
+
+        guard !newMemoryText.isEmpty else {
+            alertItem = AlertItem(message: "Please enter a description.")
+            return false
+        }
+
+        isLoading = true
+        do {
+            var imageData: Data?
+            if let image = newMemoryImage {
+                imageData = image.jpegData(compressionQuality: 0.8)
+            }
+
+            try await socialService.updatePage(
+                pageId: pageId,
+                photoData: imageData,
+                memoryText: newMemoryText,
+                photoDate: newMemoryDate
+            )
+
+            await loadPages() // Refresh pages
+
+            // Reset edit state
+            isEditingPage = false
+            editingPageId = nil
+            originalPhotoUrl = nil
+            resetMemoryForm()
+
+            isLoading = false
+            return true
+        } catch {
+            alertItem = AlertItem(message: "Failed to update memory: \(error.localizedDescription)")
+            isLoading = false
+            return false
+        }
+    }
+
+    /// Get the photo URL for the page being edited
+    var editingPagePhotoUrl: String? {
+        originalPhotoUrl
     }
 }
