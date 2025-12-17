@@ -21,6 +21,7 @@ struct SocialView: View {
     @State private var showMemoriesList = false
     @State private var showGroupMemoriesList = false
     @State private var showCreateGroupBook = false
+    @State private var showNotifications = false
 
     let columns = [
         GridItem(.flexible(), spacing: 16),
@@ -32,7 +33,28 @@ struct SocialView: View {
             Text("MoMo")
             Spacer()
             HStack {
-                Image(systemName: "bell")
+                // Notifications Bell
+                Button(action: {
+                    showNotifications = true
+                }) {
+                    ZStack(alignment: .topTrailing) {
+                        Image(systemName: "bell")
+                            .font(.title3)
+                            .foregroundColor(.primary)
+
+                        if viewModel.unreadCount > 0 {
+                            Text("\(viewModel.unreadCount)")
+                                .font(.caption2)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                                .frame(width: 16, height: 16)
+                                .background(Color.red)
+                                .clipShape(Circle())
+                                .offset(x: 6, y: -6)
+                        }
+                    }
+                }
+
                 Button(action: {
                     showFriendships = true
                 }) {
@@ -156,6 +178,33 @@ struct SocialView: View {
                     .padding(.bottom, 100)  // Space for FAB
                 }
 
+                // Notification Overlay
+                if let notification = viewModel.currentNotification {
+                    VStack {
+                        NotificationBanner(
+                            author: notification.author,
+                            bookTitle: notification.book.title ?? "Memory Book",
+                            onTap: {
+                                // Navigate to book
+                                editorConfig = .book(notification.book)
+                                // Dismiss
+                                withAnimation {
+                                    viewModel.currentNotification = nil
+                                }
+                            },
+                            onDismiss: {
+                                withAnimation {
+                                    viewModel.currentNotification = nil
+                                }
+                            }
+                        )
+                        .padding(.top, 8)
+
+                        Spacer()
+                    }
+                    .transition(.move(edge: .top))
+                    .zIndex(100)  // Ensure it's on top
+                }
             }
             .navigationBarHidden(true)
             .task {
@@ -185,6 +234,17 @@ struct SocialView: View {
             }
             .fullScreenCover(isPresented: $showCreateGroupBook) {
                 CreateGroupBookView(socialViewModel: viewModel)
+            }
+            .sheet(isPresented: $showNotifications) {
+                NotificationsView(
+                    viewModel: viewModel,
+                    onNavigateToBook: { book in
+                        // Slight delay to allow sheet to dismiss smoothly
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            editorConfig = .book(book)
+                        }
+                    }
+                )
             }
         }
     }

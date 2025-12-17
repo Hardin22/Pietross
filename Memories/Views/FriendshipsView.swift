@@ -5,12 +5,12 @@ struct FriendshipsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showSearchSheet = false
     @State private var showFriendRequests = false
-    
+
     var body: some View {
         ZStack {
             Color(uiColor: .systemBackground)
                 .ignoresSafeArea()
-            
+
             VStack(alignment: .leading, spacing: 0) {
                 // Header with back button
                 HStack {
@@ -28,24 +28,19 @@ struct FriendshipsView: View {
                 }
                 .padding(.horizontal)
                 .padding(.top, 16)
-                
+
                 // Title
                 Text("Your Friends")
                     .font(.title.bold())
                     .foregroundColor(.primary)
                     .padding(.horizontal)
                     .padding(.top, 24)
-                
+
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
-                        // Friend Requests Section (if any)
-                        if !viewModel.pendingRequests.isEmpty {
-                            friendRequestsPreview
-                        }
-                        
                         // Friends List
                         friendsList
-                        
+
                         // Add Friend Button
                         addFriendButton
                     }
@@ -65,9 +60,9 @@ struct FriendshipsView: View {
             FriendRequestsListView(viewModel: viewModel)
         }
     }
-    
+
     // MARK: - Friend Requests Preview
-    
+
     private var friendRequestsPreview: some View {
         Button(action: {
             showFriendRequests = true
@@ -81,23 +76,25 @@ struct FriendshipsView: View {
                         size: 50
                     )
                 }
-                
+
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Friend requests")
                         .font(.body.weight(.semibold))
                         .foregroundColor(.primary)
-                    
+
                     let count = viewModel.pendingRequests.count
-                    let names = viewModel.pendingRequests.prefix(2).compactMap { $0.sender?.username }.joined(separator: ", ")
+                    let names = viewModel.pendingRequests.prefix(2).compactMap {
+                        $0.sender?.username
+                    }.joined(separator: ", ")
                     let moreCount = count > 2 ? " + \(count - 2) more" : ""
-                    
+
                     Text("@\(names)\(moreCount)")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
-                
+
                 Spacer()
-                
+
                 Image(systemName: "chevron.right")
             }
             .padding()
@@ -128,7 +125,7 @@ struct FriendshipsView: View {
     }
 
     // MARK: - Add Friend Button
-    
+
     private var addFriendButton: some View {
         Button(action: {
             showSearchSheet = true
