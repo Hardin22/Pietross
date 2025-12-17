@@ -47,9 +47,10 @@ class BookDetailViewModel: ObservableObject {
     }
 
     func fetchPartnerProfile() async {
+        guard let friendshipId = book.friendshipId else { return }
         do {
             if let profile = try await socialService.getPartnerProfile(
-                friendshipId: book.friendshipId)
+                friendshipId: friendshipId)
             {
                 self.partnerName = profile.fullName ?? profile.username
             }

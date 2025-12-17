@@ -132,7 +132,9 @@ class SocialService {
             coverUrl: nil,
             title: "Our Memories",
             vibe: nil,
-            createdAt: Date()
+            createdAt: Date(),
+            isGroup: false,
+            ownerId: nil
         )
 
         try await client
@@ -144,30 +146,19 @@ class SocialService {
     }
 
     func getBooks() async throws -> [Book] {
-        guard let currentUser = client.auth.currentUser else { return [] }
+        guard client.auth.currentUser != nil else { return [] }
 
-        // Fetch books where the user is part of the friendship.
-        // This requires a join or a two-step query since 'books' only has 'friendship_id'.
-        // Step 1: Get all friendship IDs for the user.
-        let friendships: [Friendship] =
-            try await client
-            .from(AppConstants.Table.friendships)
-            .select()
-            .or("user_a.eq.\(currentUser.id),user_b.eq.\(currentUser.id)")
-            .eq("status", value: "accepted")
-            .execute()
-            .value
+        // Fetch all books the user has access to.
+        // RLS policies (see fix_recursion.sql) handle visibility:
+        // 1. Books where user is a participant (Group Books)
+        // 2. Books where user is part of the friendship (Individual Books)
+        // 3. Books owned by the user
 
-        let friendshipIds = friendships.map { $0.id }
-
-        if friendshipIds.isEmpty { return [] }
-
-        // Step 2: Get books for these friendships
         let books: [Book] =
             try await client
             .from(AppConstants.Table.books)
             .select()
-            .in("friendship_id", values: friendshipIds)
+            .order("created_at", ascending: false)
             .execute()
             .value
 

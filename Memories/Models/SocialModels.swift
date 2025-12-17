@@ -44,11 +44,13 @@ enum FriendshipStatus: String, Codable {
 
 struct Book: Codable, Identifiable {
     let id: UUID
-    let friendshipId: UUID
+    let friendshipId: UUID?
     var coverUrl: String?
     var title: String?
     var vibe: String?  // Hex color or vibe identifier
     let createdAt: Date
+    let isGroup: Bool?
+    let ownerId: UUID?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -57,6 +59,24 @@ struct Book: Codable, Identifiable {
         case title
         case vibe
         case createdAt = "created_at"
+        case isGroup = "is_group"
+        case ownerId = "owner_id"
+    }
+}
+
+struct BookParticipant: Codable, Identifiable {
+    let id: UUID
+    let bookId: UUID
+    let userId: UUID
+    let role: String
+    let joinedAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case bookId = "book_id"
+        case userId = "user_id"
+        case role
+        case joinedAt = "joined_at"
     }
 }
 
