@@ -17,6 +17,8 @@ struct SocialView: View {
     @State private var editorConfig: EditorConfig?
     @State private var showFriendships = false
     @State private var showProfile = false
+    @State private var showMemoriesList = false
+    @State private var showGroupMemoriesList = false
 
     let columns = [
         GridItem(.flexible(), spacing: 16),
@@ -51,12 +53,22 @@ struct SocialView: View {
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
-                        // Header
-                        Text("My Memories")
-                            .font(.title2)  // Reduced from largeTitle
-                            .fontWeight(.bold)
+                        // Memories Section Header
+                        Button(action: {
+                            showMemoriesList = true
+                        }) {
+                            HStack {
+                                Text("Memories")
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(.secondary)
+                            }
                             .padding(.horizontal)
                             .padding(.top)
+                        }
 
                         if viewModel.books.isEmpty {
                             EmptyStateView(
@@ -139,8 +151,53 @@ struct SocialView: View {
                                 .padding(.horizontal)
                             }
                         }
+
+                        // Group Memories Section Header
+                        Button(action: {
+                            showGroupMemoriesList = true
+                        }) {
+                            HStack {
+                                Text("Group Memories")
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.horizontal)
+                        }
+
+                        // Group Memories Carousel (Empty for now)
+                        EmptyStateView(
+                            iconName: "person.3",
+                            title: "No Group Memories Yet",
+                            message: "Group memories will appear here when you create them."
+                        )
                     }
                     .padding(.bottom, 20)
+                }
+
+                // Floating Action Button
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        Button(action: {
+                            showFriendships = true
+                        }) {
+                            Image(systemName: "plus")
+                                .font(.title2)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                                .frame(width: 60, height: 60)
+                                .background(Color.secondary)
+                                .clipShape(Circle())
+                                .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
+                        }
+                        .padding(.trailing, 20)
+                        .padding(.bottom, 20)
+                    }
                 }
             }
             .navigationBarHidden(true)
@@ -162,6 +219,12 @@ struct SocialView: View {
             }
             .fullScreenCover(isPresented: $showProfile) {
                 ProfileView()
+            }
+            .fullScreenCover(isPresented: $showMemoriesList) {
+                MemoriesListView(viewModel: viewModel)
+            }
+            .fullScreenCover(isPresented: $showGroupMemoriesList) {
+                GroupMemoriesListView(viewModel: viewModel)
             }
         }
 
