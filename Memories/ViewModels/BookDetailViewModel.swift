@@ -22,6 +22,7 @@ class BookDetailViewModel: ObservableObject {
     // Add Memory State
     @Published var newMemoryImage: UIImage?
     @Published var newMemoryText: String = ""
+    @Published var newMemorySticker: UIImage?
     @Published var newMemoryDate: Date = Date()
 
     private let socialService = SocialService.shared
@@ -111,11 +112,17 @@ class BookDetailViewModel: ObservableObject {
                 return false
             }
 
+            var stickerData: Data?
+            if let sticker = newMemorySticker {
+                stickerData = sticker.pngData()  // Use PNG for transparency
+            }
+
             try await socialService.addPage(
                 bookId: book.id,
                 authorId: currentUser.id,
                 photoData: imageData,
                 memoryText: newMemoryText,
+                stickerData: stickerData,
                 photoDate: newMemoryDate
             )
 
@@ -125,6 +132,7 @@ class BookDetailViewModel: ObservableObject {
             // Reset form
             newMemoryImage = nil
             newMemoryText = ""
+            newMemorySticker = nil
             newMemoryDate = Date()
 
             isLoading = false

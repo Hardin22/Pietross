@@ -73,6 +73,27 @@ struct CardBack: View {
             // Cream/Paper background
             Color(hex: "#FDFBF7")
 
+            // Sticker (Top Right)
+            if let stickerUrl = page.stickerUrl, let url = URL(string: stickerUrl) {
+                VStack {
+                    HStack {
+                        Spacer()
+                        CachedImage(url: url) { image in
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                        } placeholder: {
+                            Color.clear
+                        }
+                        .frame(width: 100, height: 100)  // Increased size
+                        .rotationEffect(.degrees(10))  // Slight tilt for sticker effect
+                        .padding(.top, 20)
+                        .padding(.trailing, 20)
+                    }
+                    Spacer()
+                }
+            }
+
             VStack(alignment: .center, spacing: 16) {
                 Spacer()
 

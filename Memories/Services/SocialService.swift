@@ -309,9 +309,14 @@ class SocialService {
 
     // MARK: - Page Management
 
-    func addPage(bookId: UUID, authorId: UUID, photoData: Data, memoryText: String, photoDate: Date)
-        async throws
-    {
+    func addPage(
+        bookId: UUID,
+        authorId: UUID,
+        photoData: Data,
+        memoryText: String,
+        stickerData: Data?,
+        photoDate: Date
+    ) async throws {
         let pageId = UUID()
         let fileName = "\(pageId.uuidString).jpg"
         let fileOptions = FileOptions(
@@ -326,13 +331,32 @@ class SocialService {
             .from(AppConstants.Storage.bucket)
             .createSignedURL(path: "pages/\(fileName)", expiresIn: 315_360_000)
 
-        // 2. Create Page Record
+        // 2. Upload Sticker (if present)
+        var stickerUrl: String?
+        if let stickerData = stickerData {
+            let stickerFileName = "\(pageId.uuidString)_sticker.png"
+            let stickerOptions = FileOptions(
+                cacheControl: "3600", contentType: "image/png", upsert: false)
+
+            try await client.storage
+                .from(AppConstants.Storage.bucket)
+                .upload("pages/\(stickerFileName)", data: stickerData, options: stickerOptions)
+
+            let signedStickerUrl = try await client.storage
+                .from(AppConstants.Storage.bucket)
+                .createSignedURL(path: "pages/\(stickerFileName)", expiresIn: 315_360_000)
+
+            stickerUrl = signedStickerUrl.absoluteString
+        }
+
+        // 3. Create Page Record
         let page = Page(
             id: pageId,
             bookId: bookId,
             authorId: authorId,
             photoUrl: signedUrl.absoluteString,
             memoryText: memoryText,
+            stickerUrl: stickerUrl,
             photoDate: photoDate,
             createdAt: Date()
         )

@@ -86,6 +86,7 @@ struct Page: Codable, Identifiable {
     let authorId: UUID
     let photoUrl: String
     let memoryText: String?
+    let stickerUrl: String?
     let photoDate: Date?  // YYYY-MM-DD
     let createdAt: Date
 
@@ -95,6 +96,7 @@ struct Page: Codable, Identifiable {
         case authorId = "author_id"
         case photoUrl = "photo_url"
         case memoryText = "memory_text"
+        case stickerUrl = "sticker_url"
         case photoDate = "photo_date"
         case createdAt = "created_at"
     }
