@@ -16,6 +16,7 @@ struct SocialView: View {
     @StateObject private var viewModel = SocialViewModel()
     @State private var editorConfig: EditorConfig?
     @State private var showFriendships = false
+    @State private var showProfile = false
 
     let columns = [
         GridItem(.flexible(), spacing: 16),
@@ -34,7 +35,12 @@ struct SocialView: View {
                     Image(systemName: "person.2")
                         .foregroundColor(.primary)
                 }
-                Image(systemName: "person.crop.circle")
+                Button(action: {
+                    showProfile = true
+                }) {
+                    Image(systemName: "person.crop.circle")
+                        .foregroundColor(.primary)
+                }
             }
         }
         .padding()
@@ -153,6 +159,9 @@ struct SocialView: View {
             }
             .fullScreenCover(isPresented: $showFriendships) {
                 FriendshipsView()
+            }
+            .fullScreenCover(isPresented: $showProfile) {
+                ProfileView()
             }
         }
 
