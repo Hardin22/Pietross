@@ -1,7 +1,7 @@
-import Foundation
-import SwiftUI
 import Combine
+import Foundation
 import Supabase
+import SwiftUI
 import UIKit
 
 class OnboardingViewModel: ObservableObject {
@@ -11,10 +11,10 @@ class OnboardingViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var isUsernameValid: Bool = false
     @Published var isCheckingUsername: Bool = false
-    
+
     private var cancellables = Set<AnyCancellable>()
     private let socialService = SocialService.shared
-    
+
     init() {
         // Debounce username check
         $username
@@ -31,7 +31,7 @@ class OnboardingViewModel: ObservableObject {
             }
             .store(in: &cancellables)
     }
-    
+
     @MainActor
     func checkUsername(_ username: String) async {
         self.isCheckingUsername = true
@@ -45,45 +45,49 @@ class OnboardingViewModel: ObservableObject {
             print("Error checking username: \(error)")
         }
     }
-    
+
     @Published var selectedImage: UIImage?
     @Published var isUploadingImage: Bool = false
-    
+
     // ... (existing init)
-    
+
     @MainActor
     func saveProfile(onSuccess: @escaping () -> Void) async {
         guard isUsernameValid else {
             self.errorMessage = "Please choose a valid and unique username."
             return
         }
-        
+
         self.isLoading = true
         self.errorMessage = nil
-        
+
         do {
             guard let userId = SupabaseManager.shared.client.auth.currentUser?.id else {
-                throw NSError(domain: "Auth", code: 401, userInfo: [NSLocalizedDescriptionKey: "No user logged in"])
+                throw NSError(
+                    domain: "Auth", code: 401,
+                    userInfo: [NSLocalizedDescriptionKey: "No user logged in"])
             }
-            
+
             var avatarUrl: String?
-            
+
             // Upload Avatar if selected
-            if let image = selectedImage, let imageData = image.jpegData(compressionQuality: 0.7) {
+            if let image = selectedImage, let imageData = ImageCompressor.compress(image: image) {
                 self.isUploadingImage = true
                 avatarUrl = try await socialService.uploadAvatar(userId: userId, data: imageData)
                 self.isUploadingImage = false
             }
-            
-            print("Saving profile: username=\(username), fullName=\(fullName), avatarUrl=\(avatarUrl ?? "nil")")
-            
+
+            print(
+                "Saving profile: username=\(username), fullName=\(fullName), avatarUrl=\(avatarUrl ?? "nil")"
+            )
+
             try await socialService.updateProfile(
                 id: userId,
                 username: username,
                 fullName: fullName.isEmpty ? nil : fullName,
                 avatarUrl: avatarUrl
             )
-            
+
             self.isLoading = false
             onSuccess()
         } catch {

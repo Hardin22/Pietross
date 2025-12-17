@@ -28,7 +28,8 @@ class CreateGroupBookViewModel: ObservableObject {
                 // Upload logic (similar to BookDetailViewModel)
                 // For brevity, assuming we have a helper or reusing logic.
                 // Let's implement a quick upload here or move upload logic to a service.
-                if let imageData = image.jpegData(compressionQuality: 0.7) {
+                // Use ImageCompressor for intelligent background compression
+                if let imageData = ImageCompressor.compress(image: image) {
                     let fileName = "\(UUID().uuidString).jpg"
                     // Use AppConstants.Storage.bucket if available, otherwise "photos"
                     // Assuming "photos" based on previous code, but SocialService uses AppConstants.Storage.bucket

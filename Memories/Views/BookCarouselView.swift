@@ -216,7 +216,8 @@ struct BookCarouselView: View {
 
     private var isOnFirstPage: Bool {
         guard let currentId = currentPageId,
-              let firstPage = viewModel.pages.first else {
+            let firstPage = viewModel.pages.first
+        else {
             return false
         }
         return currentId == firstPage.id
@@ -224,7 +225,8 @@ struct BookCarouselView: View {
 
     private var isOnLastPage: Bool {
         guard let currentId = currentPageId,
-              let lastPage = viewModel.pages.last else {
+            let lastPage = viewModel.pages.last
+        else {
             return false
         }
         return currentId == lastPage.id
