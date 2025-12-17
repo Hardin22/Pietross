@@ -1,5 +1,7 @@
 import Combine
 import Foundation
+import Realtime
+import Supabase
 import SwiftUI
 
 @MainActor
@@ -40,11 +42,37 @@ class BookDetailViewModel: ObservableObject {
             if selectedPageId == nil {
                 selectedPageId = pages.last?.id
             }
+            // Start listening for new pages
+            await subscribeToRealtimeUpdates()
         } catch {
             print("Failed to load pages: \(error)")
             // If table doesn't exist yet or other error, pages will be empty which triggers setup flow
         }
         isLoading = false
+    }
+
+    func subscribeToRealtimeUpdates() async {
+        let channel = SupabaseManager.shared.client.channel("public:pages:book:\(book.id)")
+        let changes = channel.postgresChange(
+            InsertAction.self,
+            schema: "public",
+            table: "pages",
+            filter: "book_id=eq.\(book.id)"
+        )
+        await channel.subscribe()
+
+        Task.detached { [weak self] in
+            for await change in changes {
+                guard let self = self else { return }
+                let record = change.record
+                // Fetch full page object or construct it
+                // For simplicity, we'll reload all pages to ensure correct order and data
+                // Optimization: Construct Page from record if possible
+                await MainActor.run {
+                    Task { await self.loadPages() }
+                }
+            }
+        }
     }
 
     func fetchPartnerProfile() async {
