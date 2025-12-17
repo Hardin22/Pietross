@@ -30,7 +30,7 @@ struct ProfileView: View {
                 
                 // Title
                 Text("Profile")
-                    .font(.largeTitle.bold())
+                    .font(.title.bold())
                     .foregroundColor(.primary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal)
