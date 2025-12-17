@@ -160,6 +160,24 @@ class SocialViewModel: ObservableObject {
         }
     }
 
+    @MainActor
+    func deleteFriend(friendId: UUID) async {
+        do {
+            // Find the friendship ID for this friend
+            guard let friendship = acceptedFriendships.first(where: { friendship in
+                friendship.userA == friendId || friendship.userB == friendId
+            }) else {
+                self.errorMessage = "Friendship not found"
+                return
+            }
+
+            try await socialService.deleteFriendship(friendshipId: friendship.id)
+            await loadData()
+        } catch {
+            self.errorMessage = "Failed to delete friend: \(error.localizedDescription)"
+        }
+    }
+
     @Published var acceptedFriendships: [Friendship] = []
 
     @MainActor

@@ -102,6 +102,14 @@ class SocialService {
             .execute()
     }
 
+    func deleteFriendship(friendshipId: UUID) async throws {
+        try await client
+            .from(AppConstants.Table.friendships)
+            .delete()
+            .eq("id", value: friendshipId)
+            .execute()
+    }
+
     // MARK: - Realtime
 
     // Realtime logic is currently handled in SocialViewModel using postgresChange stream.
