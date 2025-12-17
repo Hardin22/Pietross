@@ -5,14 +5,14 @@ struct BookGridView: View {
     let bookTitle: String
     let vibeColor: String
     let onPageSelected: (UUID) -> Void
-    
+
     @Environment(\.dismiss) private var dismiss
-    
+
     private let columns = [
         GridItem(.flexible(), spacing: 12),
-        GridItem(.flexible(), spacing: 12)
+        GridItem(.flexible(), spacing: 12),
     ]
-    
+
     var body: some View {
         NavigationView {
             ScrollView {
@@ -41,7 +41,7 @@ struct BookGridView: View {
                             Circle()
                                 .fill(Color.white.opacity(0.9))
                                 .frame(width: 32, height: 32)
-                            
+
                             Image(systemName: "xmark")
                                 .font(.system(size: 14, weight: .semibold))
                                 .foregroundColor(.black)
@@ -57,7 +57,7 @@ struct BookGridView: View {
 
 struct PageThumbnailView: View {
     let page: Page
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Thumbnail Image Container
@@ -74,7 +74,7 @@ struct PageThumbnailView: View {
                         } placeholder: {
                             ZStack {
                                 Color.white
-                                
+
                                 ProgressView()
                                     .progressViewStyle(CircularProgressViewStyle(tint: .gray))
                                     .scaleEffect(0.8)
@@ -83,7 +83,7 @@ struct PageThumbnailView: View {
                     } else {
                         ZStack {
                             Color.white
-                            
+
                             Image(systemName: "photo")
                                 .font(.system(size: 30))
                                 .foregroundColor(.gray.opacity(0.3))
@@ -99,7 +99,7 @@ struct PageThumbnailView: View {
                         .stroke(Color.white.opacity(0.5), lineWidth: 0.5)
                 )
             }
-            
+
             // Date label with better spacing
             if let date = page.photoDate {
                 Text(date.formatted(date: .abbreviated, time: .omitted))

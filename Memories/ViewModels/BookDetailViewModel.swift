@@ -65,7 +65,8 @@ class BookDetailViewModel: ObservableObject {
         do {
             var coverData: Data?
             if let coverImage = coverImage {
-                coverData = coverImage.jpegData(compressionQuality: 0.7)
+                // Use ImageCompressor for intelligent background compression
+                coverData = ImageCompressor.compress(image: coverImage)
             }
 
             try await socialService.updateBook(
@@ -95,7 +96,8 @@ class BookDetailViewModel: ObservableObject {
     }
 
     func addMemory() async -> Bool {
-        guard let image = newMemoryImage, let imageData = image.jpegData(compressionQuality: 0.8)
+        guard let image = newMemoryImage,
+            let imageData = ImageCompressor.compress(image: image)
         else {
             alertItem = AlertItem(message: "Please select an image.")
             return false
