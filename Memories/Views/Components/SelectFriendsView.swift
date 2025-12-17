@@ -71,17 +71,6 @@ struct SelectFriendsView: View {
                                     avatarUrl: friend.avatarUrl, username: friend.username, size: 50
                                 )
 
-                                VStack(alignment: .leading) {
-                                    Text(friend.username ?? "Unknown")
-                                        .font(.headline)
-                                        .foregroundColor(.primary)
-
-                                    if let fullName = friend.fullName, !fullName.isEmpty {
-                                        Text(fullName)
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
 
                                 Spacer()
 

@@ -8,7 +8,7 @@ struct SearchBar: View {
         HStack {
             Image(systemName: "magnifyingglass")
                 .foregroundColor(.gray)
-            TextField("Search username...", text: $text)
+            TextField("Search", text: $text)
                 .autocapitalization(.none)
                 .disableAutocorrection(true)
                 .submitLabel(.search)

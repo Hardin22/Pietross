@@ -30,7 +30,8 @@ struct SocialView: View {
 
     var body: some View {
         HStack {
-            Text("MoMo")
+            Text("MoMò")
+                .font(.title2.bold())
             Spacer()
             HStack {
                 // Notifications Bell
@@ -59,12 +60,14 @@ struct SocialView: View {
                     showFriendships = true
                 }) {
                     Image(systemName: "person.2")
+                        .font(.title2)
                         .foregroundColor(.primary)
                 }
                 Button(action: {
                     showProfile = true
                 }) {
                     Image(systemName: "person.crop.circle")
+                        .font(.title2)
                         .foregroundColor(.primary)
                 }
             }
@@ -257,7 +260,7 @@ struct BookCardView: View {
     let participants: [Profile]?
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(alignment: .leading, spacing: 12) {
             // Book Card (Postmark Style)
             ZStack {
                 // 1. Vibe Background
@@ -297,12 +300,13 @@ struct BookCardView: View {
             .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
 
             // Title & Partner/Group Info
-            VStack(spacing: 4) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(book.title ?? "Untitled")
                     .font(.subheadline)
                     .fontWeight(.semibold)
                     .foregroundColor(.primary)
                     .lineLimit(1)
+                    .truncationMode(.tail)
 
                 if let partner = partner {
                     HStack(spacing: 4) {
