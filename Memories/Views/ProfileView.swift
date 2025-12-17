@@ -49,6 +49,7 @@ struct ProfileView: View {
                             showEditProfile = true
                         }
                         
+                        
                         // Sign Out Button
                         Button(action: {
                             Task {
@@ -56,20 +57,20 @@ struct ProfileView: View {
                             }
                         }) {
                             Text("Sign Out")
-                                .font(.headline)
-                                .foregroundColor(.red)
-                                .frame(maxWidth: .infinity)
+                                .font(.title3)
+                                .foregroundColor(.primary)
                                 .padding(.vertical, 16)
+                                .padding(.horizontal, 24)
                                 .background(
-                                    RoundedRectangle(cornerRadius: 12)
+                                    Capsule()
                                         .fill(Color(uiColor: .secondarySystemGroupedBackground))
                                 )
                                 .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .strokeBorder(Color.red.opacity(0.3), lineWidth: 1)
-                                )
-                        }
+                                    Capsule()
+                                        .strokeBorder(Color(uiColor: .separator), lineWidth: 0.5)
+                                )                        }
                         .padding(.horizontal, 40)
+                        .padding(.top, 16)
                     }
                 } else if let error = viewModel.errorMessage {
                     VStack(spacing: 16) {

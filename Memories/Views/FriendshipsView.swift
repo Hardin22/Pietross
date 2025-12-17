@@ -323,13 +323,10 @@ struct FriendRequestRow: View {
                         isProcessing = true
                         onAccept()
                     }) {
-                        Text("confirm")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background(Color.accentColor)
-                            .cornerRadius(20)
+                        Image(systemName: "checkmark")
+                            .font(.body.weight(.semibold))
+                            .frame(width: 32, height: 32)
+                            .clipShape(Circle())
                     }
 
                     // Decline button
