@@ -64,12 +64,11 @@ struct FriendsView: View {
                     .font(.headline)
 
                 Text("\(viewModel.pendingRequests.count)")
-                    .font(.caption)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
+                    .font(.caption.bold())
+                    .foregroundStyle(.primary)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(Color.red)
+                    .background(Color(uiColor: .tertiarySystemFill))
                     .clipShape(Capsule())
             }
             .padding(.horizontal)
@@ -109,7 +108,7 @@ struct FriendsView: View {
                         }
                     }
                 }
-                .background(Color(UIColor.secondarySystemGroupedBackground))
+                .background(Color(uiColor: .secondarySystemGroupedBackground))
                 .cornerRadius(12)
                 .padding(.horizontal)
             }
@@ -120,14 +119,15 @@ struct FriendsView: View {
         VStack(spacing: 12) {
             Image(systemName: "person.2.slash")
                 .font(.system(size: 48))
-                .foregroundColor(.gray)
+                .foregroundStyle(.secondary)
 
             Text("No Friends Yet")
                 .font(.headline)
+                .foregroundStyle(.primary)
 
             Text("Tap the + button to search and add friends")
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
 
             Button(action: { showSearchSheet = true }) {
@@ -139,7 +139,7 @@ struct FriendsView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
-        .background(Color(UIColor.secondarySystemGroupedBackground))
+        .background(Color(uiColor: .secondarySystemGroupedBackground))
         .cornerRadius(12)
         .padding(.horizontal)
     }
@@ -153,6 +153,12 @@ struct FriendRow: View {
     var body: some View {
         HStack(spacing: 12) {
             AvatarView(avatarUrl: friend.avatarUrl, username: friend.username, size: 50)
+            
+            Text(friend.username ?? "Unknown")
+                .font(.body)
+                .foregroundStyle(.primary)
+            
+            Spacer()
         }
         .padding(.horizontal)
         .padding(.vertical, 12)
@@ -178,18 +184,19 @@ struct PendingRequestRow: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(request.sender?.username ?? "Unknown")
-                    .font(.body)
-                    .fontWeight(.medium)
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(.primary)
 
                 Text("wants to be your friend")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
 
             Spacer()
 
             if isProcessing {
                 ProgressView()
+                    .tint(.primary)
             } else {
                 HStack(spacing: 8) {
                     Button(action: {
@@ -198,9 +205,9 @@ struct PendingRequestRow: View {
                     }) {
                         Image(systemName: "xmark")
                             .font(.body.weight(.semibold))
-                            .foregroundColor(.red)
+                            .foregroundStyle(.primary)
                             .frame(width: 36, height: 36)
-                            .background(Color.red.opacity(0.15))
+                            .background(Color(uiColor: .tertiarySystemFill))
                             .clipShape(Circle())
                     }
 
@@ -210,9 +217,9 @@ struct PendingRequestRow: View {
                     }) {
                         Image(systemName: "checkmark")
                             .font(.body.weight(.semibold))
-                            .foregroundColor(.green)
+                            .foregroundStyle(.white)
                             .frame(width: 36, height: 36)
-                            .background(Color.green.opacity(0.15))
+                            .background(Color.accentColor)
                             .clipShape(Circle())
                     }
                 }
@@ -220,7 +227,7 @@ struct PendingRequestRow: View {
         }
         .padding(.horizontal)
         .padding(.vertical, 12)
-        .background(Color(UIColor.secondarySystemGroupedBackground))
+        .background(Color(uiColor: .secondarySystemGroupedBackground))
         .cornerRadius(12)
         .padding(.horizontal)
     }
@@ -268,14 +275,15 @@ struct SearchUsersSheet: View {
         VStack(spacing: 16) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 48))
-                .foregroundColor(.gray)
+                .foregroundStyle(.tertiary)
 
             Text("Search for Friends")
                 .font(.headline)
+                .foregroundStyle(.primary)
 
             Text("Enter a username to find people")
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -284,14 +292,15 @@ struct SearchUsersSheet: View {
         VStack(spacing: 16) {
             Image(systemName: "person.slash")
                 .font(.system(size: 48))
-                .foregroundColor(.gray)
+                .foregroundStyle(.secondary)
 
             Text("No Users Found")
                 .font(.headline)
+                .foregroundStyle(.primary)
 
             Text("Try a different search term")
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -334,13 +343,13 @@ struct SearchResultRow: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(user.username ?? "Unknown")
-                    .font(.body)
-                    .fontWeight(.medium)
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(.primary)
 
                 if let fullName = user.fullName, !fullName.isEmpty {
                     Text(fullName)
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -355,40 +364,39 @@ struct SearchResultRow: View {
     private var actionButton: some View {
         if isFriend {
             Text("Friends")
-                .font(.caption)
-                .foregroundColor(.secondary)
+                .font(.caption.bold())
+                .foregroundStyle(.secondary)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(Color.gray.opacity(0.2))
+                .background(Color(uiColor: .tertiarySystemFill))
                 .cornerRadius(12)
         } else if hasPendingRequest {
             Text("Pending")
-                .font(.caption)
-                .foregroundColor(.orange)
+                .font(.caption.bold())
+                .foregroundStyle(.secondary)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(Color.orange.opacity(0.15))
+                .background(Color(uiColor: .tertiarySystemFill))
                 .cornerRadius(12)
         } else if requestSent {
             HStack(spacing: 4) {
                 Image(systemName: "checkmark")
                 Text("Sent")
             }
-            .font(.caption)
-            .foregroundColor(.green)
+            .font(.caption.bold())
+            .foregroundStyle(.secondary)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
-            .background(Color.green.opacity(0.15))
+            .background(Color(uiColor: .tertiarySystemFill))
             .cornerRadius(12)
         } else {
             Button(action: onSendRequest) {
                 Text("Add")
-                    .font(.caption)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
+                    .font(.caption.bold())
+                    .foregroundStyle(.white)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
-                    .background(Color.blue)
+                    .background(Color.accentColor)
                     .cornerRadius(12)
             }
         }

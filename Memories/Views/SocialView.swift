@@ -15,6 +15,7 @@ enum EditorConfig: Identifiable {
 struct SocialView: View {
     @StateObject private var viewModel = SocialViewModel()
     @State private var editorConfig: EditorConfig?
+    @State private var showFriendships = false
 
     let columns = [
         GridItem(.flexible(), spacing: 16),
@@ -22,6 +23,21 @@ struct SocialView: View {
     ]
 
     var body: some View {
+        HStack {
+            Text("MoMo")
+            Spacer()
+            HStack {
+                Image(systemName: "bell")
+                Button(action: {
+                    showFriendships = true
+                }) {
+                    Image(systemName: "person.2")
+                        .foregroundColor(.primary)
+                }
+                Image(systemName: "person.crop.circle")
+            }
+        }
+        .padding()
         NavigationView {
             ZStack {
                 Color(UIColor.systemGroupedBackground)
@@ -135,6 +151,10 @@ struct SocialView: View {
                         .ignoresSafeArea(.all)
                 }
             }
+            .fullScreenCover(isPresented: $showFriendships) {
+                FriendshipsView()
+            }
         }
+
     }
 }
