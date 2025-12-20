@@ -11,7 +11,7 @@ class LoginViewController: UIViewController {
     // UI
     private let titleLabel: UILabel = {
         let l = UILabel()
-        l.text = "Memories"
+        l.text = "MoMo"
         l.font = .systemFont(ofSize: 40, weight: .bold)
         l.textAlignment = .center
         return l
