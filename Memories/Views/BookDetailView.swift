@@ -104,7 +104,7 @@ struct BookSetupTitleView: View {
                             if let image = viewModel.coverImage {
                                 Image(uiImage: image)
                                     .resizable()
-                                    .aspectRatio(contentMode: .fill)
+                                    .aspectRatio(contentMode: .fit)
                                     .frame(width: 160, height: 220)
                                     .cornerRadius(12)
                                     .clipped()
@@ -282,118 +282,165 @@ struct BookSetupVibeView: View {
 struct AddMemoryView: View {
     @ObservedObject var viewModel: BookDetailViewModel
     @State private var showImagePicker = false
+    @State private var isStickerInputActive = false  // Control keyboard focus
     @Environment(\.dismiss) var dismiss
 
     var body: some View {
         NavigationView {
-            VStack(spacing: 20) {
-                ScrollView {
-                    VStack(spacing: 24) {
-                        // Photo Picker
-                        Button(action: { showImagePicker = true }) {
-                            ZStack {
-                                if let image = viewModel.newMemoryImage {
-                                    Image(uiImage: image)
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fill)
+            ZStack {
+                VStack(spacing: 20) {
+                    ScrollView {
+                        VStack(spacing: 24) {
+                            // Photo Picker
+                            Button(action: { showImagePicker = true }) {
+                                ZStack {
+                                    if let image = viewModel.newMemoryImage {
+                                        Image(uiImage: image)
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fit)
+                                            .frame(height: 350)
+                                            .cornerRadius(16)
+                                            .clipped()
+                                    } else {
+                                        ZStack {
+                                            Color.gray.opacity(0.1)
+                                            VStack(spacing: 12) {
+                                                Image(systemName: "photo.badge.plus")
+                                                    .font(.system(size: 40))
+                                                    .foregroundColor(.gray)
+                                                Text("Tap to add photo")
+                                                    .font(.headline)
+                                                    .foregroundColor(.gray)
+                                            }
+                                        }
                                         .frame(height: 350)
                                         .cornerRadius(16)
-                                        .clipped()
-                                } else {
-                                    ZStack {
-                                        Color.gray.opacity(0.1)
-                                        VStack(spacing: 12) {
-                                            Image(systemName: "photo.badge.plus")
-                                                .font(.system(size: 40))
-                                                .foregroundColor(.gray)
-                                            Text("Tap to add photo")
-                                                .font(.headline)
-                                                .foregroundColor(.gray)
-                                        }
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 16)
+                                                .stroke(
+                                                    Color.gray.opacity(0.3),
+                                                    style: StrokeStyle(lineWidth: 2, dash: [5]))
+                                        )
                                     }
-                                    .frame(height: 350)
-                                    .cornerRadius(16)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 16)
-                                            .stroke(
-                                                Color.gray.opacity(0.3),
-                                                style: StrokeStyle(lineWidth: 2, dash: [5]))
-                                    )
                                 }
                             }
+                            .padding(.horizontal)
+                            .padding(.top)
+
+                            // Description & Sticker
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Text("CAPTION")
+                                        .font(.caption)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.secondary)
+                                    Spacer()
+                                    Button(action: { isStickerInputActive = true }) {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "face.smiling")
+                                            Text(
+                                                viewModel.newMemorySticker == nil
+                                                    ? "Add Sticker" : "Change Sticker")
+                                        }
+                                        .font(.caption)
+                                        .foregroundColor(.blue)
+                                    }
+                                }
+
+                                TextField(
+                                    "Write a memory...", text: $viewModel.newMemoryText,
+                                    axis: .vertical
+                                )
+                                .lineLimit(1...4)
+                                .padding()
+                                .background(Color.gray.opacity(0.1))
+                                .cornerRadius(12)
+
+                                if let sticker = viewModel.newMemorySticker {
+                                    HStack {
+                                        Image(uiImage: sticker)
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fit)
+                                            .frame(width: 50, height: 50)
+                                            .background(Color.gray.opacity(0.1))
+                                            .cornerRadius(8)
+
+                                        Button(action: { viewModel.newMemorySticker = nil }) {
+                                            Image(systemName: "xmark.circle.fill")
+                                                .foregroundColor(.gray)
+                                        }
+                                        Spacer()
+                                    }
+                                    .padding(.top, 4)
+                                }
+                            }
+                            .padding(.horizontal)
+
+                            // Date
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("DATE")
+                                    .font(.caption)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.secondary)
+
+                                DatePicker(
+                                    "", selection: $viewModel.newMemoryDate,
+                                    displayedComponents: .date
+                                )
+                                .labelsHidden()
+                                .datePickerStyle(.compact)
+                                .padding()
+                                .background(Color.gray.opacity(0.1))
+                                .cornerRadius(12)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .padding(.horizontal)
                         }
-                        .padding(.horizontal)
-                        .padding(.top)
-
-                        // Description
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("CAPTION")
-                                .font(.caption)
-                                .fontWeight(.bold)
-                                .foregroundColor(.secondary)
-
-                            TextField(
-                                "Write a memory...", text: $viewModel.newMemoryText, axis: .vertical
-                            )
-                            .lineLimit(1...4)
-                            .padding()
-                            .background(Color.gray.opacity(0.1))
-                            .cornerRadius(12)
-                        }
-                        .padding(.horizontal)
-
-                        // Date
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("DATE")
-                                .font(.caption)
-                                .fontWeight(.bold)
-                                .foregroundColor(.secondary)
-
-                            DatePicker(
-                                "", selection: $viewModel.newMemoryDate, displayedComponents: .date
-                            )
-                            .labelsHidden()
-                            .datePickerStyle(.compact)
-                            .padding()
-                            .background(Color.gray.opacity(0.1))
-                            .cornerRadius(12)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        .padding(.horizontal)
                     }
+
+                    // Save Button
+                    Button(action: {
+                        Task {
+                            if await viewModel.addMemory() {
+                                dismiss()
+                            }
+                        }
+                    }) {
+                        if viewModel.isLoading {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        } else {
+                            Text("Save Memory")
+                                .fontWeight(.bold)
+                        }
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.black)
+                    .cornerRadius(16)
+                    .padding(.horizontal)
+                    .padding(.bottom)
+                    .disabled(
+                        viewModel.newMemoryImage == nil || viewModel.newMemoryText.isEmpty
+                            || viewModel.isLoading
+                    )
+                    .opacity(
+                        (viewModel.newMemoryImage == nil || viewModel.newMemoryText.isEmpty)
+                            ? 0.5 : 1.0
+                    )
                 }
 
-                // Save Button
-                Button(action: {
-                    Task {
-                        if await viewModel.addMemory() {
-                            dismiss()
-                        }
-                    }
-                }) {
-                    if viewModel.isLoading {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                    } else {
-                        Text("Save Memory")
-                            .fontWeight(.bold)
-                    }
-                }
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.black)
-                .cornerRadius(16)
-                .padding(.horizontal)
-                .padding(.bottom)
-                .disabled(
-                    viewModel.newMemoryImage == nil || viewModel.newMemoryText.isEmpty
-                        || viewModel.isLoading
-                )
-                .opacity(
-                    (viewModel.newMemoryImage == nil || viewModel.newMemoryText.isEmpty) ? 0.5 : 1.0
-                )
             }
+
+            .background(
+                // Hidden Sticker Input
+                StickerInputView(isFirstResponder: $isStickerInputActive) { image in
+                    viewModel.newMemorySticker = image
+                }
+                .frame(width: 1, height: 1)
+                .opacity(0.01)
+            )
             .navigationTitle("New Memory")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -472,7 +519,7 @@ struct PagesView: View {
                                 CachedImage(url: URL(string: page.photoUrl)!) { image in
                                     image
                                         .resizable()
-                                        .aspectRatio(contentMode: .fill)
+                                        .aspectRatio(contentMode: .fit)
                                 } placeholder: {
                                     Color.gray.opacity(0.3)
                                 }

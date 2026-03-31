@@ -1,5 +1,7 @@
 import Combine
 import Foundation
+import Realtime
+import Supabase
 import SwiftUI
 
 @MainActor
@@ -22,6 +24,7 @@ class BookDetailViewModel: ObservableObject {
     // Add Memory State
     @Published var newMemoryImage: UIImage?
     @Published var newMemoryText: String = ""
+    @Published var newMemorySticker: UIImage?
     @Published var newMemoryDate: Date = Date()
 
     private let socialService = SocialService.shared
@@ -39,6 +42,8 @@ class BookDetailViewModel: ObservableObject {
             if selectedPageId == nil {
                 selectedPageId = pages.last?.id
             }
+            // Start listening for new pages
+            await subscribeToRealtimeUpdates()
         } catch {
             print("Failed to load pages: \(error)")
             // If table doesn't exist yet or other error, pages will be empty which triggers setup flow
@@ -46,10 +51,35 @@ class BookDetailViewModel: ObservableObject {
         isLoading = false
     }
 
+    func subscribeToRealtimeUpdates() async {
+        let channel = SupabaseManager.shared.client.channel("public:pages:book:\(book.id)")
+        let changes = channel.postgresChange(
+            InsertAction.self,
+            schema: "public",
+            table: "pages",
+            filter: "book_id=eq.\(book.id)"
+        )
+        await channel.subscribe()
+
+        Task.detached { [weak self] in
+            for await change in changes {
+                guard let self = self else { return }
+                let record = change.record
+                // Fetch full page object or construct it
+                // For simplicity, we'll reload all pages to ensure correct order and data
+                // Optimization: Construct Page from record if possible
+                await MainActor.run {
+                    Task { await self.loadPages() }
+                }
+            }
+        }
+    }
+
     func fetchPartnerProfile() async {
+        guard let friendshipId = book.friendshipId else { return }
         do {
             if let profile = try await socialService.getPartnerProfile(
-                friendshipId: book.friendshipId)
+                friendshipId: friendshipId)
             {
                 self.partnerName = profile.fullName ?? profile.username
             }
@@ -63,7 +93,8 @@ class BookDetailViewModel: ObservableObject {
         do {
             var coverData: Data?
             if let coverImage = coverImage {
-                coverData = coverImage.jpegData(compressionQuality: 0.7)
+                // Use ImageCompressor for intelligent background compression
+                coverData = ImageCompressor.compress(image: coverImage)
             }
 
             try await socialService.updateBook(
@@ -93,7 +124,8 @@ class BookDetailViewModel: ObservableObject {
     }
 
     func addMemory() async -> Bool {
-        guard let image = newMemoryImage, let imageData = image.jpegData(compressionQuality: 0.8)
+        guard let image = newMemoryImage,
+            let imageData = ImageCompressor.compress(image: image)
         else {
             alertItem = AlertItem(message: "Please select an image.")
             return false
@@ -110,11 +142,17 @@ class BookDetailViewModel: ObservableObject {
                 return false
             }
 
+            var stickerData: Data?
+            if let sticker = newMemorySticker {
+                stickerData = sticker.pngData()  // Use PNG for transparency
+            }
+
             try await socialService.addPage(
                 bookId: book.id,
                 authorId: currentUser.id,
                 photoData: imageData,
                 memoryText: newMemoryText,
+                stickerData: stickerData,
                 photoDate: newMemoryDate
             )
 
@@ -124,6 +162,7 @@ class BookDetailViewModel: ObservableObject {
             // Reset form
             newMemoryImage = nil
             newMemoryText = ""
+            newMemorySticker = nil
             newMemoryDate = Date()
 
             isLoading = false

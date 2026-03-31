@@ -33,7 +33,9 @@ class SocialService {
     // MARK: - Friend Requests
 
     func sendFriendRequest(to userId: UUID) async throws {
+        print("🚀 sendFriendRequest called for target: \(userId)")
         guard let currentUser = client.auth.currentUser else {
+            print("❌ sendFriendRequest failed: User not logged in")
             throw NSError(
                 domain: "Auth", code: 401,
                 userInfo: [NSLocalizedDescriptionKey: "User not logged in"])
@@ -42,9 +44,25 @@ class SocialService {
         // Explicitly set user_a as sender (current user) and user_b as recipient (target user)
         let userA = currentUser.id
         let userB = userId
+        print("👤 Sender (User A): \(userA), Receiver (User B): \(userB)")
 
-        // Check if friendship already exists (optional but good practice)
-        // For now relying on DB constraint if any, or just insert.
+        // Check if friendship already exists to avoid duplicates
+        // We check both directions: A->B or B->A
+        let existing: [Friendship] =
+            try await client
+            .from(AppConstants.Table.friendships)
+            .select()
+            .or(
+                "and(user_a.eq.\(userA),user_b.eq.\(userB)),and(user_a.eq.\(userB),user_b.eq.\(userA))"
+            )
+            .execute()
+            .value
+
+        if !existing.isEmpty {
+            print("⚠️ Friendship already exists: \(existing.count) record(s) found. Aborting.")
+            // Already exists (pending or accepted), do nothing or throw
+            return
+        }
 
         let friendship = Friendship(
             id: UUID(),
@@ -54,22 +72,32 @@ class SocialService {
             createdAt: Date()
         )
 
-        try await client
-            .from(AppConstants.Table.friendships)
-            .insert(friendship)
-            .execute()
+        print("📝 Inserting new friendship record: \(friendship)")
+
+        do {
+            try await client
+                .from(AppConstants.Table.friendships)
+                .insert(friendship)
+                .execute()
+            print("✅ Friend request sent successfully!")
+        } catch {
+            print("❌ Failed to insert friendship: \(error)")
+            throw error
+        }
     }
 
     func getPendingRequests() async throws -> [Friendship] {
         guard let currentUser = client.auth.currentUser else { return [] }
 
         // Only fetch requests where I am the recipient (user_b)
+        // AND the status is explicitly 'pending'
         var requests: [Friendship] =
             try await client
             .from(AppConstants.Table.friendships)
             .select()
             .eq("user_b", value: currentUser.id)
             .eq("status", value: "pending")
+            .order("created_at", ascending: false)  // Newest first
             .execute()
             .value
 
@@ -86,7 +114,7 @@ class SocialService {
             .execute()
             .value
 
-        // Map senders
+        // Map senders to requests
         for i in 0..<requests.count {
             requests[i].sender = profiles.first(where: { $0.id == requests[i].userA })
         }
@@ -98,6 +126,14 @@ class SocialService {
         try await client
             .from(AppConstants.Table.friendships)
             .delete()  // Or update to 'rejected' if we want history
+            .eq("id", value: friendshipId)
+            .execute()
+    }
+
+    func deleteFriendship(friendshipId: UUID) async throws {
+        try await client
+            .from(AppConstants.Table.friendships)
+            .delete()
             .eq("id", value: friendshipId)
             .execute()
     }
@@ -124,7 +160,9 @@ class SocialService {
             coverUrl: nil,
             title: "Our Memories",
             vibe: nil,
-            createdAt: Date()
+            createdAt: Date(),
+            isGroup: false,
+            ownerId: nil
         )
 
         try await client
@@ -136,30 +174,19 @@ class SocialService {
     }
 
     func getBooks() async throws -> [Book] {
-        guard let currentUser = client.auth.currentUser else { return [] }
+        guard client.auth.currentUser != nil else { return [] }
 
-        // Fetch books where the user is part of the friendship.
-        // This requires a join or a two-step query since 'books' only has 'friendship_id'.
-        // Step 1: Get all friendship IDs for the user.
-        let friendships: [Friendship] =
-            try await client
-            .from(AppConstants.Table.friendships)
-            .select()
-            .or("user_a.eq.\(currentUser.id),user_b.eq.\(currentUser.id)")
-            .eq("status", value: "accepted")
-            .execute()
-            .value
+        // Fetch all books the user has access to.
+        // RLS policies (see fix_recursion.sql) handle visibility:
+        // 1. Books where user is a participant (Group Books)
+        // 2. Books where user is part of the friendship (Individual Books)
+        // 3. Books owned by the user
 
-        let friendshipIds = friendships.map { $0.id }
-
-        if friendshipIds.isEmpty { return [] }
-
-        // Step 2: Get books for these friendships
         let books: [Book] =
             try await client
             .from(AppConstants.Table.books)
             .select()
-            .in("friendship_id", values: friendshipIds)
+            .order("created_at", ascending: false)
             .execute()
             .value
 
@@ -310,9 +337,14 @@ class SocialService {
 
     // MARK: - Page Management
 
-    func addPage(bookId: UUID, authorId: UUID, photoData: Data, memoryText: String, photoDate: Date)
-        async throws
-    {
+    func addPage(
+        bookId: UUID,
+        authorId: UUID,
+        photoData: Data,
+        memoryText: String,
+        stickerData: Data?,
+        photoDate: Date
+    ) async throws {
         let pageId = UUID()
         let fileName = "\(pageId.uuidString).jpg"
         let fileOptions = FileOptions(
@@ -327,13 +359,32 @@ class SocialService {
             .from(AppConstants.Storage.bucket)
             .createSignedURL(path: "pages/\(fileName)", expiresIn: 315_360_000)
 
-        // 2. Create Page Record
+        // 2. Upload Sticker (if present)
+        var stickerUrl: String?
+        if let stickerData = stickerData {
+            let stickerFileName = "\(pageId.uuidString)_sticker.png"
+            let stickerOptions = FileOptions(
+                cacheControl: "3600", contentType: "image/png", upsert: false)
+
+            try await client.storage
+                .from(AppConstants.Storage.bucket)
+                .upload("pages/\(stickerFileName)", data: stickerData, options: stickerOptions)
+
+            let signedStickerUrl = try await client.storage
+                .from(AppConstants.Storage.bucket)
+                .createSignedURL(path: "pages/\(stickerFileName)", expiresIn: 315_360_000)
+
+            stickerUrl = signedStickerUrl.absoluteString
+        }
+
+        // 3. Create Page Record
         let page = Page(
             id: pageId,
             bookId: bookId,
             authorId: authorId,
             photoUrl: signedUrl.absoluteString,
             memoryText: memoryText,
+            stickerUrl: stickerUrl,
             photoDate: photoDate,
             createdAt: Date()
         )
